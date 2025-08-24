@@ -50,10 +50,10 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 .table-common th{ font-weight: 700; }
 
 /* Performance summary: 5 columnas */
-.summary-table th, .summary-table td { width: 20%; }
+.summary-table th, .summary-table td { width: 15%; }
 
 /* Top/Worst: 1ª col Asset + 5 cols de valores */
-.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width: 25%; }
+.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width: 15%; }
 .tw-tabular th:nth-child(n+2), .tw-tabular td:nth-child(n+2){ width: 15%; }
 
 /* Títulos compactos de las 3 tablas superiores */
@@ -410,7 +410,7 @@ def plot_dd(dict_equities, df_bench=None, bench_label=None, show_bench=True, ser
 def render_summary_table(rows):
     html = ['<table class="table-common summary-table">']
     html.append("<thead><tr>")
-    for h in ["Asset", "Total Return", "CAGR", "Max DD", "Vol (ann.)"]:
+    for h in ["Asset", "Return", "CAGR", "Max DD", "Vol"]:
         html.append(f"<th>{h}</th>")
     html.append("</tr></thead><tbody>")
     for r in rows:
