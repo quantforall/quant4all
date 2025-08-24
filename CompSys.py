@@ -1,12 +1,6 @@
 # app.py
 from q4a_ui import setup_page, inject_css, make_fig
 
-setup_page(
-    page_title="Quant4all | Let's compare",
-    page_icon="📈",          # o "Logo.jpg" si lo tienes
-    layout="centered",
-    collapse_sidebar=True
-)
 inject_css(max_width_px=1500)  # ajusta el ancho si quieres (900-1200)
 
 import streamlit as st
