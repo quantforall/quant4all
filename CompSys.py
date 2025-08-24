@@ -420,9 +420,9 @@ def render_summary_table(rows):
             tr += "<td>—</td><td>—</td><td>—</td><td>—</td>"
         else:
             tr += f"<td><span class='num'>{r['Total Return']:.1f}x</span></td>"
-            tr += f"<td><span class='num'>{r['CAGR']:.1f}%</span></td>"
-            tr += f"<td><span class='num'>{r['Max DD']:.1f}%</span></td>"
-            tr += f"<td><span class='num'>{r['Vol']:.1f}%</span></td>"
+            tr += f"<td><span class='num'>{r['CAGR']:.1f} %</span></td>"
+            tr += f"<td><span class='num'>{r['Max DD']:.1f} %</span></td>"
+            tr += f"<td><span class='num'>{r['Vol']:.1f} %</span></td>"
         tr += "</tr>"
         html.append(tr)
     html.append("</tbody></table>")
