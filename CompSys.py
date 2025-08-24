@@ -787,7 +787,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div style='color:#6b7280; font-size:1.4rem; line-height:1.4; margin-bottom:1rem;'>
+<div style='color:#6b7280; font-size:1.2rem; line-height:1.2; margin-bottom:1rem;'>
     📝 Compara de manera interactiva diferentes activos entre sí y con los sistemas de Quant4all.<br>
     🔍 Explora métricas clave de rentabilidad, riesgo y correlación a lo largo del tiempo.<br>
     🕹️ Usa la barra lateral para seleccionar capital inicial, tickers y sistemas a evaluar en el periodo que quieras.<br>
@@ -854,7 +854,7 @@ for label in ordered_labels_tables:
 # ---- Render de las 3 tablas en 3 columnas iguales (sin contenedores visibles) ----
 c1, c2, c3 = st.columns(3, gap="small")
 with c1:
-    st.markdown("<h3 class='tri-title'>🎯 Key Metrics</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 class='tri-title'>🎯 Key Metrics</h4>", unsafe_allow_html=True)
     if rows:
         st.markdown(render_summary_table(rows), unsafe_allow_html=True)
     else:
