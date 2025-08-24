@@ -35,17 +35,8 @@ def _theme_tokens():
 TOK = _theme_tokens()
 IS_DARK = TOK["is_dark"]
 
-# -------------------- Page config --------------------
-def setup_page(page_title: str, page_icon: str="📈", layout: str="centered", collapse_sidebar: bool=True):
-    st.set_page_config(
-        page_title=page_title,
-        page_icon=page_icon,
-        layout=layout,
-        initial_sidebar_state=("collapsed" if collapse_sidebar else "auto"),
-    )
-
 # -------------------- CSS injection --------------------
-def inject_css(max_width_px: int = 50000):
+def inject_css(max_width_px: int = 1500):
     st.markdown(f"""
     <style>
     /* Container width */
