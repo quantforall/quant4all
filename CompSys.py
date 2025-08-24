@@ -1,5 +1,5 @@
 # app.py
-from q4a_ui import setup_page, inject_css, make_fig
+from q4a_ui import inject_css, make_fig
 
 inject_css(max_width_px=1500)  # ajusta el ancho si quieres (900-1200)
 
