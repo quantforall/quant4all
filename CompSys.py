@@ -1,5 +1,13 @@
+# app.py
+
 import streamlit as st
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import plotly.graph_objects as go
+from datetime import datetime, time, date
 import base64
+
 # función para convertir la imagen en base64
 def get_base64_of_bin_file(filename):
     with open(filename, "rb") as f:
@@ -11,16 +19,6 @@ logo_base64 = get_base64_of_bin_file("Logo.jpg")
 # Page config
 # -----------------------
 st.set_page_config(page_title="Quant4all | Let's compare", page_icon=logo_base64, layout="wide")
-
-from q4a_ui import inject_css, make_fig
-inject_css(max_width_px=1500)  # ajusta el ancho si quieres (900-1200)
-
-
-import pandas as pd
-import numpy as np
-import yfinance as yf
-import plotly.graph_objects as go
-from datetime import datetime, time, date
 
 # -----------------------
 # Global CSS
@@ -44,7 +42,7 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
   text-align: center;
   vertical-align: middle;
   line-height: 1.15;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   white-space: nowrap;             /* evita saltos de línea que alterarían altura por fila */
   overflow: hidden;
   text-overflow: ellipsis;
@@ -52,10 +50,10 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 .table-common th{ font-weight: 700; }
 
 /* Performance summary: 5 columnas */
-.summary-table th, .summary-table td { width: 15%; }
+.summary-table th, .summary-table td { width: 20%; }
 
 /* Top/Worst: 1ª col Asset + 5 cols de valores */
-.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width:15%; }
+.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width: 25%; }
 .tw-tabular th:nth-child(n+2), .tw-tabular td:nth-child(n+2){ width: 15%; }
 
 /* Títulos compactos de las 3 tablas superiores */
@@ -87,7 +85,7 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 .summary-table td:first-child,
 .tw-tabular th:first-child,
 .tw-tabular td:first-child {
-  width: 22%;
+  width: 15%;
 }
 .sticky-slider {
     position: sticky;
@@ -100,7 +98,7 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 /* Aumenta SOLO los números de las celdas de datos (no headers, no 1ª columna) */
 .table-common.summary-table td:not(:first-child) .num,
 .table-common.tw-tabular   td:not(:first-child) .num{
-  font-size: 1rem !important;  /* súbelo si quieres (1.25rem, 1.3rem…) */
+  font-size: 1.20rem !important;  /* súbelo si quieres (1.25rem, 1.3rem…) */
   font-weight: 600;
   color: #6b7280 !important;      /* gris muy oscuro */
   line-height: 1;                 /* no estira la altura de la celda */
@@ -110,10 +108,9 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 
 /* Fechas Top/Worst: exactamente igual que antes */
 .table-common.tw-tabular td .tw-date{
-  font-size: 0.7em !important;
+  font-size: 0.8em !important;
   color: #6b7280 !important;
 }
-
 /* ===== KPI cards centradas ===== */
 .kpi-card{
   text-align:center;
@@ -413,7 +410,7 @@ def plot_dd(dict_equities, df_bench=None, bench_label=None, show_bench=True, ser
 def render_summary_table(rows):
     html = ['<table class="table-common summary-table">']
     html.append("<thead><tr>")
-    for h in ["Asset", "Return", "CAGR", "Max DD", "Volat"]:
+    for h in ["Asset", "Total Return", "CAGR", "Max DD", "Vol (ann.)"]:
         html.append(f"<th>{h}</th>")
     html.append("</tr></thead><tbody>")
     for r in rows:
@@ -784,7 +781,7 @@ st.markdown("""
 <h1 style='margin-top:1rem; margin-bottom:.5rem;'>
   Let’s compare |
   <span style='font-size:.65em; font-weight:500; color:#000000;'>
-    by <span style='color:#dc2626; font-weight:700; font-size:1em;'>Quant4all</span>
+    by <span style='color:#dc2626; font-weight:700;'>Quant4all</span>
   </span>
 </h1>
 """, unsafe_allow_html=True)
@@ -794,7 +791,7 @@ st.markdown("""
     📝 Compara de manera interactiva diferentes activos entre sí y con los sistemas de Quant4all.<br>
     🔍 Explora métricas clave de rentabilidad, riesgo y correlación a lo largo del tiempo.<br>
     🕹️ Usa la barra lateral para seleccionar capital inicial, tickers y sistemas a evaluar en el periodo que quieras.<br>
-    📩 <span style='color:#dc2626; font-weight:600; font-size:1.4rem;'>Suscríbete gratis</span> a mi newsletter y recibirás:<br>
+    📩 <span style='color:#dc2626; font-weight:600;'>Suscríbete gratis</span> a mi newsletter y recibirás:<br>
         <span style="display:inline-block; margin-left:30px;">- Un pdf con todos los detalles de mis sistemas.<br>
         - Acceso a grupo de Telegram donde comparto diariamente indicadores de Amplitud de Mercado y el sistema de cobertura Agorero.<br>
         - Las entradas y salidas del sistema Big Three.
