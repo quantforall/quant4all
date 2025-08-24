@@ -1,16 +1,5 @@
-# app.py
-from q4a_ui import inject_css, make_fig
-
-inject_css(max_width_px=1500)  # ajusta el ancho si quieres (900-1200)
-
 import streamlit as st
-import pandas as pd
-import numpy as np
-import yfinance as yf
-import plotly.graph_objects as go
-from datetime import datetime, time, date
 import base64
-
 # función para convertir la imagen en base64
 def get_base64_of_bin_file(filename):
     with open(filename, "rb") as f:
@@ -22,6 +11,16 @@ logo_base64 = get_base64_of_bin_file("Logo.jpg")
 # Page config
 # -----------------------
 st.set_page_config(page_title="Quant4all | Let's compare", page_icon=logo_base64, layout="wide")
+
+from q4a_ui import inject_css, make_fig
+inject_css(max_width_px=1500)  # ajusta el ancho si quieres (900-1200)
+
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import plotly.graph_objects as go
+from datetime import datetime, time, date
 
 # -----------------------
 # Global CSS
