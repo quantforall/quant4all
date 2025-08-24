@@ -49,12 +49,9 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
 }
 .table-common th{ font-weight: 700; }
 
-/* Performance summary: 5 columnas */
-.summary-table th, .summary-table td { width: 15%; }
-
 /* Top/Worst: 1ª col Asset + 5 cols de valores */
-.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width: 15%; }
-.tw-tabular th:nth-child(n+2), .tw-tabular td:nth-child(n+2){ width: 15%; }
+.tw-tabular th:nth-child(1), .tw-tabular td:nth-child(1){ width: 20%; }
+.tw-tabular th:nth-child(n+2), .tw-tabular td:nth-child(n+2){ width: 10%; }
 
 /* Títulos compactos de las 3 tablas superiores */
 .tri-title{
@@ -105,6 +102,9 @@ h2 {margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
   display: inline-block;
   vertical-align: middle;
 }
+.summary-table th, .summary-table td { width: 18.75%; }
+.summary-table th:first-child,
+.summary-table td:first-child { width: 20%; }
 
 /* Fechas Top/Worst: exactamente igual que antes */
 .table-common.tw-tabular td .tw-date{
@@ -419,10 +419,10 @@ def render_summary_table(rows):
         if np.isnan(r["Total Return"]):
             tr += "<td>—</td><td>—</td><td>—</td><td>—</td>"
         else:
-            tr += f"<td><span class='num'>{r['Total Return']:.1f} x</span></td>"
-            tr += f"<td><span class='num'>{r['CAGR']:.1f} %</span></td>"
-            tr += f"<td><span class='num'>{r['Max DD']:.1f} %</span></td>"
-            tr += f"<td><span class='num'>{r['Vol']:.1f} %</span></td>"
+            tr += f"<td><span class='num'>{r['Total Return']:.1f}x</span></td>"
+            tr += f"<td><span class='num'>{r['CAGR']:.1f}%</span></td>"
+            tr += f"<td><span class='num'>{r['Max DD']:.1f}%</span></td>"
+            tr += f"<td><span class='num'>{r['Vol']:.1f}%</span></td>"
         tr += "</tr>"
         html.append(tr)
     html.append("</tbody></table>")
