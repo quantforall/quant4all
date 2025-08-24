@@ -1,0 +1,23 @@
+# === Entornos virtuales ===
+.venv/
+venv/
+env/
+ENV/
+
+# === Cachés de Python / compilados ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === Editores / SO ===
+.vscode/
+.DS_Store
+Thumbs.db
+
+# === Otros que no quieres subir (añade según tu caso) ===
+.streamlit/secrets.toml
