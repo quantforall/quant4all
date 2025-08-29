@@ -924,8 +924,9 @@ st.markdown('<div class="left-block-gap"></div>', unsafe_allow_html=True)
 
 st.markdown("<hr style='border:0; border-top:1px solid #6b7280; margin:2rem 0;'>", unsafe_allow_html=True)
 
+
 # -----------------------
-# 📊 Distribution of Daily Returns (PRO, v2)
+# 📊 Distribution of Daily Returns
 # -----------------------
 st.markdown("<h3 class='section-title'> 📊 Distribution of Daily Returns</h3>", unsafe_allow_html=True)
 
@@ -934,22 +935,23 @@ labels_systems = [s for s in systems if s in daily_map]
 labels_bench = [benchmark.upper()] if (show_benchmark and benchmark.upper() in daily_map) else []
 all_choices = labels_tickers + labels_systems + labels_bench
 
-# Layout 75% / 25%
-col_plot, col_side = st.columns([0.75, 0.25], gap="large")
-
 if not all_choices:
     st.info("No hay series disponibles en esta categoría para el periodo seleccionado.")
 else:
-    # Selector con ancho 15% dentro del área de la gráfica
-    with col_plot:
-        sel_col, _ = st.columns([0.15, 0.85])
-        with sel_col:
+    # === Selector centrado al 15% del ancho de la página ===
+    outer_left, outer_mid, outer_right = st.columns([0.1, 0.8, 0.1])
+    with outer_mid:
+        sub_l, sub_c, sub_r = st.columns([0.40625, 0.1875, 0.40625])  # centro = 0.8*0.1875 = 15% total
+        with sub_c:
             selected_label = st.selectbox("Serie", all_choices, index=0, label_visibility="collapsed")
 
     vals = (daily_map[selected_label].dropna() * 100.0)
     if vals.empty:
         st.info("No hay datos de retornos diarios para la serie seleccionada en el periodo.")
     else:
+        # Layout 75% / 25% para gráfica y stats
+        col_plot, col_side = st.columns([0.75, 0.25], gap="large")
+
         # Métricas
         mu = float(vals.mean())
         sigma = float(vals.std(ddof=1)) if len(vals) > 1 else 0.0
@@ -957,8 +959,6 @@ else:
 
         # ---- Figura (histograma + bandas σ) ----
         hist_fig = go.Figure()
-
-        # Histograma
         hist_fig.add_trace(go.Histogram(
             x=vals,
             nbinsx=100,
@@ -968,7 +968,6 @@ else:
             hovertemplate="%{x:.2f}%<extra></extra>"
         ))
 
-        # Bandas ±1σ, ±2σ, ±3σ (sombras)
         bands = [
             (mu - 3*sigma, mu + 3*sigma, 0.12, "±3σ"),
             (mu - 2*sigma, mu + 2*sigma, 0.18, "±2σ"),
@@ -978,7 +977,6 @@ else:
             if np.isfinite(x0) and np.isfinite(x1) and x1 >= x0:
                 hist_fig.add_vrect(x0=x0, x1=x1, fillcolor="#9ca3af", opacity=opac, line_width=0)
 
-        # Media y líneas guía ±σ, ±2σ, ±3σ
         hist_fig.add_shape(type="line", x0=mu, x1=mu, y0=0, y1=1, xref="x", yref="paper",
                            line=dict(color="#111827", width=2))
         for k in (1, 2, 3):
@@ -986,19 +984,17 @@ else:
                 hist_fig.add_shape(type="line", x0=xk, x1=xk, y0=0, y1=1, xref="x", yref="paper",
                                    line=dict(color="#6b7280", width=1, dash="dash"))
 
-        # Etiquetas compactas arriba
         hist_fig.add_annotation(x=mu, y=1.06, xref="x", yref="paper",
                                 text="μ", showarrow=False, font=dict(size=12, color="#111827"))
-        for k, lab in zip((1,2,3), ("±1σ","±2σ","±3σ")):
+        for k, lab in zip((1, 2, 3), ("±1σ", "±2σ", "±3σ")):
             hist_fig.add_annotation(x=mu + k*sigma, y=1.06, xref="x", yref="paper",
                                     text=f"+{lab}", showarrow=False, font=dict(size=11, color="#6b7280"))
             hist_fig.add_annotation(x=mu - k*sigma, y=1.06, xref="x", yref="paper",
                                     text=f"-{lab}", showarrow=False, font=dict(size=11, color="#6b7280"))
 
-        # 👉 Más padding superior para que no “toque” el borde
         hist_fig.update_layout(
             height=540,
-            margin=dict(l=0, r=0, t=30, b=0),  # t=30 da aire arriba
+            margin=dict(l=0, r=0, t=30, b=0),
             xaxis_title="Daily return (%)",
             yaxis_title="Frequency",
             showlegend=False,
@@ -1006,13 +1002,11 @@ else:
         )
 
         with col_plot:
-            # Pequeño spacer adicional por si usas títulos muy grandes
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
             st.plotly_chart(hist_fig, use_container_width=True)
 
-                # ---- Columna derecha: Stats → Threshold → KPIs ----
+        # ---- Columna derecha con STATS / Threshold / KPIs ----
         with col_side:
-            st.markdown("""
+            st.markdown(f"""
             <div style="text-align:center; border:1px solid #e5e7eb; border-radius:12px; padding:12px;
                         box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-top:.5rem;">
                 <div style="font-weight:700; margin-bottom:.25rem;">STATS</div>
@@ -1022,27 +1016,18 @@ else:
                     <div>Skewness: <span style="font-weight:600">{skew:.3f}</span></div>
                 </div>
             </div>
-            """.format(mu=mu, sigma=sigma, skew=skew), unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
             st.markdown("<div style='height:5rem;'></div>", unsafe_allow_html=True)
 
-            # Threshold en la misma línea
             th_col1, th_col2 = st.columns([0.5, 0.5])
             with th_col1:
-                st.markdown(
-                    """
-                    <div style="
-                        display:flex;
-                        justify-content:center;   /* centra horizontal */
-                        align-items:center;       /* centra vertical */
-                        height:38px;              /* igual que el input */
-                        font-weight:600;
-                    ">
+                st.markdown("""
+                    <div style="display:flex; justify-content:center; align-items:center;
+                                height:38px; font-weight:600;">
                         Threshold (%)
                     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                    """, unsafe_allow_html=True)
             with th_col2:
                 threshold_pct = st.number_input(
                     "", min_value=0.0, max_value=100.0, value=5.0, step=0.5, format="%.1f",
@@ -1050,37 +1035,151 @@ else:
                 )
 
             thr = float(threshold_pct)
+            st.markdown("<h4 style='text-align:center;'>Number of days with returns:</h4>", unsafe_allow_html=True)
 
-            # Título centrado encima de las dos columnas
-            st.markdown(
-                "<h4 style='text-align:center;'>Number of days with returns:</h4>",
-                unsafe_allow_html=True
-            )
-
-            # Valores
             pos_days = int((vals >= +thr).sum())
             neg_days = int((vals <= -thr).sum())
 
-            # KPIs alineados al centro con colores dinámicos
             k1, k2 = st.columns(2)
             with k1:
-                st.markdown(
-                    f"""
-                    <div style="text-align:center;">
-                        <div style="font-size:1rem; font-weight:600;">≥ +{thr:.1f}%</div>
-                        <div style="font-size:3rem; color:green;">{pos_days}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
+                st.markdown(f"""
+                <div style="text-align:center;">
+                    <div style="font-size:1rem; font-weight:600;">≥ +{thr:.1f}%</div>
+                    <div style="font-size:3rem; color:green;">{pos_days}</div>
+                </div>
+                """, unsafe_allow_html=True)
             with k2:
-                st.markdown(
-                    f"""
-                    <div style="text-align:center;">
-                        <div style="font-size:1rem; font-weight:600;">≤ -{thr:.1f}%</div>
-                        <div style="font-size:3rem; color:red;">{neg_days}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"""
+                <div style="text-align:center;">
+                    <div style="font-size:1rem; font-weight:600;">≤ -{thr:.1f}%</div>
+                    <div style="font-size:3rem; color:red;">{neg_days}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+                
+# ======================
+# === Distribution of Monthly Returns
+# ======================
+st.markdown("<hr style='border:0; border-top:1px solid #6b7280; margin:2rem 0;'>", unsafe_allow_html=True)
+st.markdown("<h3 class='section-title'>📅 Distribution of Monthly Returns</h3>", unsafe_allow_html=True)
+
+# --- CSS sólo para la tabla (80% centrada) ---
+st.markdown("""
+<style>
+.monthly-heat-wrap { width: 80%; margin: 0 auto; }
+.monthly-heat {
+  border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.95rem;
+}
+.monthly-heat th, .monthly-heat td {
+  border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; vertical-align: middle;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.monthly-heat thead th { background: #f3f4f6; font-weight: 800; }
+.monthly-heat tfoot td { background: #f9fafb; font-weight: 700; }
+.monthly-heat td.year-col, .monthly-heat th.year-col { width: 8%; font-weight: 700; }
+.monthly-heat th.mon-col, .monthly-heat td.mon-col { width: 6.9%; }
+.monthly-heat th.ytd-col, .monthly-heat td.ytd-col { width: 7.8%; font-weight: 800; }
+.monthly-heat .cell { color: #111827; font-weight: 600; }
+.monthly-heat .na { color: #6b7280; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- Construir lista de series: benchmark + sistemas + tickers ---
+available_labels = []
+label_to_series = {}
+
+# Benchmark
+if show_benchmark and close_bench is not None and not close_bench.empty:
+    available_labels.append(benchmark.upper())
+    label_to_series[benchmark.upper()] = close_bench
+
+# Sistemas (retornos diarios -> agregamos a mensual)
+for sys, rets in dict_system_rets.items():
+    if not rets.empty:
+        available_labels.append(sys)
+        label_to_series[sys] = rets
+
+# Tickers
+for t, s in dict_closes.items():
+    if not s.empty:
+        available_labels.append(t.upper())
+        label_to_series[t.upper()] = s
+
+if not available_labels:
+    st.info("Añade al menos un **ticker**, **sistema** o el benchmark para ver el análisis mensual.")
+else:
+    # === Selector centrado al 15% del ancho de la página ===
+    # 1) Fila de 3 columnas para lograr un contenedor central del 80%
+    outer_left, outer_mid, outer_right = st.columns([0.1, 0.8, 0.1])
+    with outer_mid:
+        # 2) Dentro del 80%, subcolumnas [0.40625, 0.1875, 0.40625] -> centro = 0.8*0.1875 = 0.15 del total
+        sub_l, sub_c, sub_r = st.columns([0.40625, 0.1875, 0.40625])
+        with sub_c:
+            monthly_label = st.selectbox("Serie", available_labels, index=0, label_visibility="collapsed")
+
+    ser = label_to_series[monthly_label].loc[current_start:current_end]
+    if ser.empty:
+        st.info("No hay datos en el rango seleccionado para esta serie.")
+    else:
+        # --- Retornos mensuales ---
+        if monthly_label in dict_system_rets:   # sistema (retornos diarios en proporción)
+            m_ret = ser.resample("M").apply(lambda x: (1 + x).prod() - 1) * 100
+        else:                                   # ticker/benchmark (precios)
+            m_close = ser.resample("M").last()
+            m_ret = m_close.pct_change() * 100
+
+        df = m_ret.to_frame("ret").dropna(how="all")
+        df["Year"] = df.index.year
+        df["Month"] = df.index.month
+        pivot = df.pivot(index="Year", columns="Month", values="ret").sort_index()
+        yret = ((1.0 + (pivot / 100.0)).prod(axis=1) - 1.0) * 100.0
+        avg_row, avg_y = pivot.mean(axis=0), yret.mean()
+
+        # --- Colores (verde+ / rojo-) con intensidad limitada (±20%) ---
+        def bg_color(v: float) -> str:
+            if pd.isna(v): return ""
+            lim = 20.0
+            x = max(-lim, min(lim, float(v)))
+            if x >= 0:
+                alpha, (r1,g1,b1), (r2,g2,b2) = x/lim, (229,247,233), (22,163,74)
+            else:
+                alpha, (r1,g1,b1), (r2,g2,b2) = -x/lim, (252,231,231), (220,38,38)
+            r = int(r1 + (r2 - r1)*alpha); g = int(g1 + (g2 - g1)*alpha); b = int(b1 + (b2 - b1)*alpha)
+            return f"background-color: rgb({r},{g},{b});"
+
+        months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+        # --- Render tabla (80% centrado) ---
+        html = ["<div class='monthly-heat-wrap'><table class='monthly-heat'>"]
+        html.append("<thead><tr><th class='year-col'>Year</th>")
+        for m in months: html.append(f"<th class='mon-col'>{m}</th>")
+        html.append("<th class='ytd-col'>Yr%</th></tr></thead><tbody>")
+        for yr in pivot.index:
+            html.append(f"<tr><td class='year-col'>{yr}</td>")
+            for m_idx in range(1, 13):
+                v = pivot.loc[yr].get(m_idx, np.nan)
+                if pd.isna(v):
+                    html.append("<td class='mon-col na'>N/A</td>")
+                else:
+                    html.append(f"<td class='mon-col' style='{bg_color(v)}'><span class='cell'>{v:+.1f}%</span></td>")
+            vy = yret.get(yr, np.nan)
+            if pd.isna(vy):
+                html.append("<td class='ytd-col na'>—</td>")
+            else:
+                html.append(f"<td class='ytd-col' style='{bg_color(vy)}'><span class='cell'>{vy:+.1f}%</span></td>")
+            html.append("</tr>")
+        html.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
+        for m_idx in range(1, 13):
+            v = avg_row.get(m_idx, np.nan)
+            if pd.isna(v):
+                html.append("<td class='mon-col na'>—</td>")
+            else:
+                html.append(f"<td class='mon-col' style='{bg_color(v)}'><span class='cell'>{v:+.1f}%</span></td>")
+        if pd.isna(avg_y):
+            html.append("<td class='ytd-col na'>—</td>")
+        else:
+            html.append(f"<td class='ytd-col' style='{bg_color(avg_y)}'><span class='cell'>{avg_y:+.1f}%</span></td>")
+        html.append("</tr></tfoot></table></div>")
+
+        st.markdown("".join(html), unsafe_allow_html=True)
