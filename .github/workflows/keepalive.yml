@@ -1,0 +1,30 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # ejecuta cada 10 minutos
+  workflow_dispatch:         # permite lanzarlo manualmente desde la pestaña Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          URL="https://quantforall.streamlit.app"
+          echo "Pinging $URL ..."
+          # hasta 3 intentos con 10s máx por intento; falla si código HTTP >=400
+          for i in 1 2 3; do
+            if curl --silent --show-error --fail --location \
+                    --max-time 10 \
+                    --header "User-Agent: keepalive-bot" \
+                    "$URL" > /dev/null; then
+              echo "OK on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
+          echo "All attempts failed."
+          exit 1
