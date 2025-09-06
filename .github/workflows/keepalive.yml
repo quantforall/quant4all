@@ -2,29 +2,53 @@ name: Keep Streamlit Alive
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # ejecuta cada 10 minutos
-  workflow_dispatch:         # permite lanzarlo manualmente desde la pestaña Actions
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
-      - name: Ping Streamlit app
+      - name: Set URL
+        run: echo "URL=https://quantforall.streamlit.app" >> $GITHUB_ENV
+
+      - name: Show URL and resolve DNS
         run: |
-          URL="https://quantforall.streamlit.app"
-          echo "Pinging $URL ..."
-          # hasta 3 intentos con 10s máx por intento; falla si código HTTP >=400
-          for i in 1 2 3; do
-            if curl --silent --show-error --fail --location \
-                    --max-time 10 \
-                    --header "User-Agent: keepalive-bot" \
-                    "$URL" > /dev/null; then
-              echo "OK on attempt $i"
-              exit 0
-            fi
-            echo "Attempt $i failed, retrying..."
-            sleep 5
-          done
-          echo "All attempts failed."
-          exit 1
+          echo "Target: $URL"
+          getent hosts "$(echo "$URL" | sed -E 's#https?://([^/]+)/?.*#\1#')" || true
+
+      - name: Curl with diagnostics (headers + status)
+        id: curl
+        run: |
+          set -e
+          echo "Requesting $URL ..."
+          STATUS=$(curl \
+            --silent --show-error --location \
+            --retry 5 --retry-delay 5 --retry-connrefused \
+            --connect-timeout 15 --max-time 45 \
+            --ipv4 \
+            --header "User-Agent: keepalive-bot" \
+            --write-out "%{http_code}" \
+            --output response.body \
+            --dump-header response.headers \
+            "$URL")
+          echo "HTTP_STATUS=$STATUS" >> $GITHUB_OUTPUT
+          echo "---- Response headers ----"
+          sed -n '1,50p' response.headers || true
+          echo "---- First 400 chars of body ----"
+          head -c 400 response.body || true
+          echo
+          # éxito sólo si 2xx o 3xx
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "OK ($STATUS)"
+          else
+            echo "Non-success HTTP status: $STATUS" >&2
+            exit 1
+          fi
+
+      - name: Timing info
+        if: always()
+        run: |
+          echo "DNS+TLS/HTTP hiccups are common on cold starts."
+          echo "Checked at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
