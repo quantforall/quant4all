@@ -1,4 +1,4 @@
-name: Keep Streamlit Alive
+name: Keep Streamlit Alive (debug redirects)
 
 on:
   schedule:
@@ -10,45 +10,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Set URL
-        run: echo "URL=https://quantforall.streamlit.app" >> $GITHUB_ENV
-
-      - name: Show URL and resolve DNS
+      - name: Set URL (usa la CANÓNICA)
         run: |
-          echo "Target: $URL"
-          getent hosts "$(echo "$URL" | sed -E 's#https?://([^/]+)/?.*#\1#')" || true
+          # Usa preferiblemente la URL *.streamlit.app exacta que abre en el navegador sin saltos
+          echo "URL=https://quantforall.streamlit.app/" >> $GITHUB_ENV
 
-      - name: Curl with diagnostics (headers + status)
-        id: curl
+      - name: Show DNS
+        run: |
+          host "$(echo "$URL" | sed -E 's#https?://([^/]+)/?.*#\1#')" || true
+
+      - name: Trace redirects (verbose)
         run: |
           set -e
-          echo "Requesting $URL ..."
+          echo "Tracing: $URL"
+          # Guarda toda la sesión HTTP (con -v) para ver redirecciones y Location:
+          curl -v -I "$URL" 2>&1 | sed -n '1,120p' || true
+
+      - name: GET with cap on redirects + report
+        run: |
+          set -e
+          MAXR=10
+          OUT_HEADERS=resp.headers
+          OUT_BODY=resp.body
           STATUS=$(curl \
-            --silent --show-error --location \
-            --retry 5 --retry-delay 5 --retry-connrefused \
+            --silent --show-error \
+            --location --max-redirs "$MAXR" \
             --connect-timeout 15 --max-time 45 \
             --ipv4 \
-            --header "User-Agent: keepalive-bot" \
-            --write-out "%{http_code}" \
-            --output response.body \
-            --dump-header response.headers \
+            --write-out "code=%{http_code}\neffective=%{url_effective}\nredirects=%{num_redirects}\nredir_to=%{redirect_url}\n" \
+            --dump-header "$OUT_HEADERS" \
+            --output "$OUT_BODY" \
             "$URL")
-          echo "HTTP_STATUS=$STATUS" >> $GITHUB_OUTPUT
-          echo "---- Response headers ----"
-          sed -n '1,50p' response.headers || true
-          echo "---- First 400 chars of body ----"
-          head -c 400 response.body || true
+          echo "---- CURL META ----"
+          echo "$STATUS"
+          echo "-------------------"
+          echo "---- Headers (last hop) ----"
+          sed -n '1,80p' "$OUT_HEADERS" || true
+          echo "---- First 300 chars of body ----"
+          head -c 300 "$OUT_BODY" || true
           echo
-          # éxito sólo si 2xx o 3xx
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-            echo "OK ($STATUS)"
+          CODE=$(echo "$STATUS" | sed -n 's/^code=\([0-9]*\)$/\1/p')
+          REDIRS=$(echo "$STATUS" | sed -n 's/^redirects=\([0-9]*\)$/\1/p')
+          if [ "$REDIRS" -ge "$MAXR" ]; then
+            echo "❌ Demasiados redireccionamientos (>= $MAXR). Revisa la URL/redirects." >&2
+            exit 47
+          fi
+          if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 400 ]; then
+            echo "✅ OK ($CODE), redirects: $REDIRS"
           else
-            echo "Non-success HTTP status: $STATUS" >&2
+            echo "❌ HTTP $CODE" >&2
             exit 1
           fi
-
-      - name: Timing info
-        if: always()
-        run: |
-          echo "DNS+TLS/HTTP hiccups are common on cold starts."
-          echo "Checked at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
