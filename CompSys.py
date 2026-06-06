@@ -1287,4 +1287,14 @@ else:
                             f"<span class='cell'>{vy:+.1f}%</span></td>")
             html.append("</tr>")
         html.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
-        for m_idx in ra
+        for m_idx in range(1, 13):
+            v = avg_row.get(m_idx, np.nan)
+            if pd.isna(v):
+                html.append("<td class='mon-col na'>—</td>")
+            else:
+                html.append(f"<td class='mon-col' style='{bg_color(v)}'>"
+                            f"<span class='cell'>{v:+.1f}%</span></td>")
+        if pd.isna(avg_y):
+            html.append("<td class='ytd-col na'>—</td>")
+        else:
+            html.append(f"<td class='ytd-co
