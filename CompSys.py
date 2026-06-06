@@ -103,6 +103,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    align-self: flex-start;
+    width: 100%;
 }
 .table-common {
     width: 100%;
@@ -130,6 +132,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-size: 0.78rem;
     white-space: nowrap;
 }
+.table-common tbody tr { height: 54px; }
 .table-common tbody tr:last-child td { border-bottom: none; }
 .table-common tbody tr:hover td { background: #f9fafb; }
 
