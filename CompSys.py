@@ -971,7 +971,7 @@ for label in ordered_labels:
 # =============================================
 st.markdown("<div class='section-header'>🏆 Performance Summary</div>", unsafe_allow_html=True)
 
-c1, c2, c3 = st.columns(3, gap="small")
+c1, c2, c3 = st.columns([0.30, 0.35, 0.35], gap="small")
 with c1:
     if summary_rows:
         st.markdown(render_summary_table(summary_rows), unsafe_allow_html=True)
