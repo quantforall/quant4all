@@ -37,7 +37,7 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .block-container {
-    padding-top: 1.5rem !important;
+    padding-top: 3.5rem !important;
     padding-bottom: 2rem !important;
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
@@ -369,7 +369,7 @@ with st.sidebar:
 
     with col_systems:
         st.markdown("**Quant4all Systems**")
-        system_choices = ["", "ROCStar", "All Stars", "TAA"]
+        system_choices = ["", "ROCStar", "All Stars", "Big Three", "TAA"]
         systems = []
         default_selection = ["All Stars", "ROCStar", "", ""]
         for i in range(4):
