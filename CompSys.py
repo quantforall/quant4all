@@ -1297,4 +1297,7 @@ else:
         if pd.isna(avg_y):
             html.append("<td class='ytd-col na'>—</td>")
         else:
-            html.append(f"<td class='ytd-co
+            html.append(f"<td class='ytd-col' style='{bg_color(avg_y)}'>"
+                        f"<span class='cell'>{avg_y:+.1f}%</span></td>")
+        html.append("</tr></tfoot></table></div>")
+        st.markdown("".join(html), unsafe_allow_html=True)
