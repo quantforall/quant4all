@@ -369,7 +369,7 @@ with st.sidebar:
 
     with col_systems:
         st.markdown("**Quant4all Systems**")
-        system_choices = ["", "ROCStar", "All Stars", "Big Three", "TAA"]
+        system_choices = ["", "ROCStar", "All Stars", "TAA"]
         systems = []
         default_selection = ["All Stars", "ROCStar", "", ""]
         for i in range(4):
