@@ -112,49 +112,50 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .table-common thead th {
     background: #f9fafb;
-    padding: 7px 6px;
-    font-size: 0.72rem;
+    padding: 6px 4px;
+    font-size: 0.68rem;
     font-weight: 700;
     color: #6b7280;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     text-align: center;
     border-bottom: 1px solid #e5e7eb;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
 }
 .table-common tbody td {
-    padding: 7px 6px;
+    padding: 6px 4px;
     text-align: center;
     vertical-align: middle;
     border-bottom: 1px solid #f3f4f6;
-    font-size: 0.82rem;
-    white-space: normal;
-    word-break: break-word;
+    font-size: 0.78rem;
+    white-space: nowrap;
 }
 .table-common tbody tr:last-child td { border-bottom: none; }
 .table-common tbody tr:hover td { background: #f9fafb; }
 
 /* Numbers inside cells */
 .num {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: #111827;
+    white-space: nowrap;
+    display: inline-block;
 }
 .tw-date {
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     color: #9ca3af;
     display: block;
     margin-top: 1px;
+    white-space: nowrap;
 }
 
-/* Column widths — summary (Asset 24%, 4 metric cols ~19% each) */
-.summary-table th:first-child, .summary-table td:first-child { width: 24%; text-align: left; padding-left: 10px; }
-.summary-table th:not(:first-child), .summary-table td:not(:first-child) { width: 19%; }
+/* Column widths — summary */
+.summary-table { table-layout: auto; }
+.summary-table th:first-child, .summary-table td:first-child { text-align: left; padding-left: 10px; }
 
-/* Column widths — top/worst (Asset 20%, 5 value cols ~16% each) */
-.tw-tabular th:first-child, .tw-tabular td:first-child { width: 20%; text-align: left; padding-left: 10px; }
-.tw-tabular th:not(:first-child), .tw-tabular td:not(:first-child) { width: 16%; }
+/* Column widths — top/worst */
+.tw-tabular { table-layout: auto; }
+.tw-tabular th:first-child, .tw-tabular td:first-child { text-align: left; padding-left: 10px; }
 
 /* Table title pill */
 .table-title {
@@ -567,7 +568,7 @@ def plot_dd(dict_equities, df_bench=None, bench_label=None, show_bench=True, ser
 def render_summary_table(rows):
     html = ['<div class="table-wrap"><div class="table-title">🎯 Key Metrics</div>']
     html.append('<table class="table-common summary-table"><thead><tr>')
-    for h in ["Asset", "Total Return", "CAGR", "Max DD", "Vol"]:
+    for h in ["Asset", "Return", "CAGR", "Max DD", "Vol"]:
         html.append(f"<th>{h}</th>")
     html.append("</tr></thead><tbody>")
     for r in rows:
