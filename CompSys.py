@@ -112,56 +112,56 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .table-common thead th {
     background: #f9fafb;
-    padding: 10px 8px;
-    font-size: 0.78rem;
+    padding: 7px 6px;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #6b7280;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     text-align: center;
     border-bottom: 1px solid #e5e7eb;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 }
 .table-common tbody td {
-    padding: 10px 8px;
+    padding: 7px 6px;
     text-align: center;
     vertical-align: middle;
     border-bottom: 1px solid #f3f4f6;
-    font-size: 0.92rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.82rem;
+    white-space: normal;
+    word-break: break-word;
 }
 .table-common tbody tr:last-child td { border-bottom: none; }
 .table-common tbody tr:hover td { background: #f9fafb; }
 
 /* Numbers inside cells */
 .num {
-    font-size: 1.05rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #111827;
 }
 .tw-date {
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     color: #9ca3af;
     display: block;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
-/* Column widths — summary */
-.summary-table th:first-child, .summary-table td:first-child { width: 22%; text-align: left; padding-left: 14px; }
-.summary-table th:not(:first-child), .summary-table td:not(:first-child) { width: 19.5%; }
+/* Column widths — summary (Asset 24%, 4 metric cols ~19% each) */
+.summary-table th:first-child, .summary-table td:first-child { width: 24%; text-align: left; padding-left: 10px; }
+.summary-table th:not(:first-child), .summary-table td:not(:first-child) { width: 19%; }
 
-/* Column widths — top/worst */
-.tw-tabular th:first-child, .tw-tabular td:first-child { width: 22%; text-align: left; padding-left: 14px; }
-.tw-tabular th:not(:first-child), .tw-tabular td:not(:first-child) { width: 15.6%; }
+/* Column widths — top/worst (Asset 20%, 5 value cols ~16% each) */
+.tw-tabular th:first-child, .tw-tabular td:first-child { width: 20%; text-align: left; padding-left: 10px; }
+.tw-tabular th:not(:first-child), .tw-tabular td:not(:first-child) { width: 16%; }
 
 /* Table title pill */
 .table-title {
-    font-size: 0.88rem;
+    font-size: 0.80rem;
     font-weight: 700;
     color: #374151;
-    padding: 10px 14px 8px 14px;
+    padding: 8px 12px 7px 12px;
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
     letter-spacing: 0.01em;
@@ -539,13 +539,18 @@ def plot_dd(dict_equities, df_bench=None, bench_label=None, show_bench=True, ser
         if df.empty:
             continue
         color = (series_color or {}).get(label, PALETTE[i % len(PALETTE)])
+        # Convert hex to rgba for transparent fill
+        if color.startswith("#"):
+            h = color.lstrip("#")
+            r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+            fill_color = f"rgba({r},{g},{b},0.10)"
+        else:
+            fill_color = color
         fig.add_trace(go.Scatter(
             x=df.index, y=df["dd"] * 100, mode="lines", name=label,
             line=dict(color=color, width=2),
             fill="tozeroy",
-            fillcolor=color.replace(")", ", 0.08)").replace("rgb(", "rgba(").replace("#", "").replace(
-                color, color + "18"
-            ) if color.startswith("#") else color,
+            fillcolor=fill_color,
             hovertemplate=f"<b>{label}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}%<extra></extra>",
         ))
     if show_bench and df_bench is not None and not df_bench.empty:
@@ -1282,17 +1287,4 @@ else:
                             f"<span class='cell'>{vy:+.1f}%</span></td>")
             html.append("</tr>")
         html.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
-        for m_idx in range(1, 13):
-            v = avg_row.get(m_idx, np.nan)
-            if pd.isna(v):
-                html.append("<td class='mon-col na'>—</td>")
-            else:
-                html.append(f"<td class='mon-col' style='{bg_color(v)}'>"
-                            f"<span class='cell'>{v:+.1f}%</span></td>")
-        if pd.isna(avg_y):
-            html.append("<td class='ytd-col na'>—</td>")
-        else:
-            html.append(f"<td class='ytd-col' style='{bg_color(avg_y)}'>"
-                        f"<span class='cell'>{avg_y:+.1f}%</span></td>")
-        html.append("</tr></tfoot></table></div>")
-        st.markdown("".join(html), unsafe_allow_html=True)
+        for m_idx in ra
