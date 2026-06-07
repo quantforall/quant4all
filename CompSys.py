@@ -24,6 +24,7 @@ st.set_page_config(
     page_title="Quant4all | Let's compare",
     page_icon="📊",
     layout="wide",
+    initial_sidebar_state="auto",
 )
 
 # -----------------------
@@ -318,6 +319,59 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
 
 /* hide default streamlit header/footer noise */
 #MainMenu, footer { visibility: hidden; }
+
+/* ===================================================== */
+/* ============== RESPONSIVE / MÓVIL ==================== */
+/* ===================================================== */
+@media (max-width: 820px) {
+
+    /* Padding lateral compacto */
+    .block-container {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        padding-top: 2.5rem !important;
+    }
+
+    /* Apilar TODAS las columnas en vertical */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.6rem !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"],
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    /* Hero y títulos más pequeños */
+    .hero-title { font-size: 1.4rem; }
+    .section-header { font-size: 1.05rem; margin: 1.25rem 0 0.75rem 0; }
+
+    /* KPI cards: número algo menor */
+    .kpi-card .kpi-value { font-size: 1.45rem; }
+    .kpi-card { padding: 0.75rem 1rem; }
+
+    /* Tablas anchas (Top/Worst, Performance) → scroll horizontal */
+    .table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+
+    /* Heatmap mensual: ancho completo + scroll, sin aplastar celdas */
+    .monthly-heat-wrap { width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .monthly-heat { min-width: 620px; }
+
+    /* Counter cards (días +/-) un poco menores */
+    .count-card .count-val { font-size: 2.2rem; }
+
+    /* Stats card margen superior para separarla del gráfico apilado */
+    .stats-card { margin-top: 1rem; }
+}
+
+/* Pantallas muy pequeñas (teléfonos estrechos) */
+@media (max-width: 480px) {
+    .hero-title { font-size: 1.2rem; }
+    .num { font-size: 0.78rem; }
+    .table-common tbody td { font-size: 0.74rem; }
+    .kpi-card .kpi-value { font-size: 1.25rem; }
+}
 </style>
 """, unsafe_allow_html=True)
 
