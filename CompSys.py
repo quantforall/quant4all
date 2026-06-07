@@ -227,11 +227,10 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
 [data-testid="stSidebar"] hr { border-color: #374151; }
 
-/* ── Slider accent color → naranja ── */
-[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stThumbValue"],
-[data-testid="stSlider"] [role="slider"] { background: #FE880C !important; border-color: #FE880C !important; }
-[data-testid="stSlider"] [data-baseweb="slider"] > div > div:first-child { background: #374151 !important; }
-[data-testid="stSlider"] [data-baseweb="slider"] > div > div:nth-child(2) { background: #FE880C !important; }
+/* ── Slider: ocultar tooltip feo al hacer hover ── */
+[data-testid="stSlider"] [data-testid="stThumbValue"] { display: none !important; }
+[data-testid="stSlider"] div[data-baseweb="tooltip"] { display: none !important; }
+[data-testid="stSlider"] [role="tooltip"] { display: none !important; }
 
 /* ── Stats card ── */
 .stats-card {
