@@ -902,7 +902,7 @@ for t in tickers:
 # ==================  MAIN LAYOUT  =====================
 # ======================================================
 
-# ---- Hero ----
+# ---- Hero (outside tabs) ----
 st.markdown("""
 <div class='hero-title'>
   Let's compare &nbsp;<span class='hero-sub'>by Quant4all</span>
@@ -919,7 +919,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- Master label order: Systems → Tickers → Benchmark ----
-ordered_labels: list[str] = []
+ordered_labels = []
 for sys in systems:
     if sys in dict_equities or sys in daily_map:
         ordered_labels.append(sys)
@@ -966,342 +966,622 @@ for label in ordered_labels:
         top_dict[label] = t5 + [(None, np.nan)] * (5 - len(t5))
         worst_dict[label] = b5 + [(None, np.nan)] * (5 - len(b5))
 
-# =============================================
-# Section 1 — Performance Summary (3 tables)
-# =============================================
-st.markdown("<div class='section-header'>🏆 Performance Summary</div>", unsafe_allow_html=True)
-
-c1, c2, c3 = st.columns([0.30, 0.35, 0.35], gap="small")
-with c1:
-    if summary_rows:
-        st.markdown(render_summary_table(summary_rows), unsafe_allow_html=True)
+# ---- Monthly heat bg helper (shared by both tabs) ----
+def bg_color(v: float) -> str:
+    if pd.isna(v):
+        return ""
+    lim = 20.0
+    x = max(-lim, min(lim, float(v)))
+    if x >= 0:
+        alpha = x / lim
+        r1, g1, b1 = 220, 252, 231
+        r2, g2, b2 = 22, 163, 74
     else:
-        st.info("Sin datos en el rango seleccionado.")
-with c2:
-    st.markdown(render_top_table("Top Daily Returns", "🚀", top_dict, SERIES_COLOR), unsafe_allow_html=True)
-with c3:
-    st.markdown(render_top_table("Worst Daily Returns", "🔥", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
+        alpha = -x / lim
+        r1, g1, b1 = 254, 226, 226
+        r2, g2, b2 = 220, 38, 38
+    r = int(r1 + (r2 - r1) * alpha)
+    g = int(g1 + (g2 - g1) * alpha)
+    b = int(b1 + (b2 - b1) * alpha)
+    return f"background-color: rgb({r},{g},{b});"
 
-st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-
-# =============================================
-# Section 2 — Equity & Drawdown
-# =============================================
-c_title, c_ctrl = st.columns([0.75, 0.25])
-with c_title:
-    st.markdown("<div class='section-header'>📈 Equity & Drawdown</div>", unsafe_allow_html=True)
-with c_ctrl:
-    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
-    col_u, col_s = st.columns(2)
-    with col_u:
-        unit_choice = st.radio("", options=["$", "%"], index=0, horizontal=True, label_visibility="collapsed")
-    with col_s:
-        scale_choice = st.radio("", options=["Lin", "Log"], index=0, horizontal=True, label_visibility="collapsed")
-
-st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-equity_fig = plot_equity(
-    dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
-    show_bench=show_benchmark, unit=unit_choice, scale=scale_choice,
-    series_color=SERIES_COLOR,
-)
-st.plotly_chart(equity_fig, use_container_width=True, config={"displayModeBar": False})
-st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-dd_fig = plot_dd(
-    dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
-    show_bench=show_benchmark, series_color=SERIES_COLOR,
-)
-st.plotly_chart(dd_fig, use_container_width=True, config={"displayModeBar": False})
-st.markdown("</div>", unsafe_allow_html=True)
-
-# ---- Legend (color dots + labels) ----
-legend_items = [
-    f"<span style='display:inline-flex; align-items:center; gap:5px; margin-right:14px;'>"
-    f"<span style='width:18px; height:4px; border-radius:2px; background:{SERIES_COLOR.get(lab, '#111827')}; display:inline-block;'></span>"
-    f"<span style='font-size:0.85rem; font-weight:600; color:#374151;'>{lab}</span>"
-    f"</span>"
-    for lab in ordered_labels
-]
-st.markdown(
-    "<div style='text-align:center; margin-top:-0.5rem; margin-bottom:1rem;'>"
-    + "".join(legend_items) + "</div>",
-    unsafe_allow_html=True,
-)
-
-st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
 # =============================================
-# Section 3 — Correlation Matrix
+# TABS
 # =============================================
-st.markdown("<div class='section-header'>🪢 Correlation Matrix</div>", unsafe_allow_html=True)
-if len(daily_map) >= 2:
-    ddf = pd.concat(list(daily_map.values()), axis=1)
-    ddf.columns = list(daily_map.keys())
-    ddf = ddf.dropna(how="all")
-    corr_df = ddf.corr(method="pearson", min_periods=3)
-    ordered_corr = list(daily_map.keys())
-    corr_df = corr_df.reindex(index=ordered_corr, columns=ordered_corr)
-    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-    st.plotly_chart(
-        corr_heatmap_figure(corr_df, ordered_corr, BENCH_COLOR, SERIES_COLOR),
-        use_container_width=True, config={"displayModeBar": False},
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-else:
-    st.info("Añade al menos **dos** series con datos en el periodo para ver la correlación.")
+tab_compare, tab_simulator = st.tabs(["📊 Comparador", "💼 Simulador de Cartera"])
 
-st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
 # =============================================
-# Section 4 — Distribution of Daily Returns
+# TAB 1 — Comparador
 # =============================================
-st.markdown("<div class='section-header'>📊 Distribution of Daily Returns</div>", unsafe_allow_html=True)
+with tab_compare:
 
-labels_all = (
-    [t.upper() for t in tickers if t.upper() in daily_map]
-    + [s for s in systems if s in daily_map]
-    + ([benchmark.upper()] if show_benchmark and benchmark.upper() in daily_map else [])
-)
+    # Section 1 — Performance Summary
+    st.markdown("<div class='section-header'>🏆 Performance Summary</div>", unsafe_allow_html=True)
 
-if not labels_all:
-    st.info("No hay series disponibles para el periodo seleccionado.")
-else:
-    _, sel_col, _ = st.columns([0.425, 0.15, 0.425])
-    with sel_col:
-        selected_label = st.selectbox("Serie", labels_all, index=0, label_visibility="collapsed")
-
-    vals = daily_map[selected_label].dropna() * 100.0
-    if vals.empty:
-        st.info("No hay datos de retornos diarios para la serie seleccionada.")
-    else:
-        mu = float(vals.mean())
-        sigma = float(vals.std(ddof=1)) if len(vals) > 1 else 0.0
-        skew_val = float(vals.skew()) if len(vals) > 2 else 0.0
-        kurt_val = float(vals.kurtosis()) if len(vals) > 3 else 0.0
-
-        col_plot, col_side = st.columns([0.75, 0.25], gap="large")
-
-        # histogram
-        hist_fig = go.Figure()
-        series_col = SERIES_COLOR.get(selected_label, "#6366f1")
-        hist_fig.add_trace(go.Histogram(
-            x=vals, nbinsx=100, name=selected_label,
-            marker=dict(color=series_col, line=dict(color="white", width=0.3)),
-            opacity=0.9,
-            hovertemplate="%{x:.2f}%<extra></extra>",
-        ))
-        for k, opac in zip((3, 2, 1), (0.08, 0.13, 0.20)):
-            x0, x1 = mu - k * sigma, mu + k * sigma
-            if np.isfinite(x0) and np.isfinite(x1):
-                hist_fig.add_vrect(x0=x0, x1=x1, fillcolor="#9ca3af", opacity=opac, line_width=0)
-        hist_fig.add_vline(x=mu, line=dict(color="#111827", width=2))
-        for k in (1, 2, 3):
-            for xk in (mu + k * sigma, mu - k * sigma):
-                hist_fig.add_vline(x=xk, line=dict(color="#6b7280", width=1, dash="dash"))
-        hist_fig.add_annotation(x=mu, y=1.06, xref="x", yref="paper", text="μ",
-                                 showarrow=False, font=dict(size=12, color="#111827"))
-        for k, lab in zip((1, 2, 3), ("±1σ", "±2σ", "±3σ")):
-            for sign, prefix in ((1, "+"), (-1, "-")):
-                hist_fig.add_annotation(
-                    x=mu + sign * k * sigma, y=1.06, xref="x", yref="paper",
-                    text=f"{prefix}{lab}", showarrow=False, font=dict(size=10, color="#6b7280"),
-                )
-        _apply_layout(hist_fig, "", height=460)
-        hist_fig.update_layout(
-            xaxis_title="Daily Return (%)",
-            yaxis=dict(title="Frequency", side="left", showgrid=True,
-                       gridcolor="#f3f4f6", tickfont=dict(size=11)),
-            bargap=0.02, showlegend=False,
-        )
-
-        with col_plot:
-            st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-            st.plotly_chart(hist_fig, use_container_width=True, config={"displayModeBar": False})
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_side:
-            # Stats card
-            st.markdown(f"""
-            <div class='stats-card'>
-                <div class='stats-title'>Statistics</div>
-                <div class='stats-row'>
-                    <span class='stat-label'>Mean (μ)</span>
-                    <span class='stat-val'>{mu:+.3f}%</span>
-                </div>
-                <div class='stats-row'>
-                    <span class='stat-label'>Std Dev (σ)</span>
-                    <span class='stat-val'>{sigma:.3f}%</span>
-                </div>
-                <div class='stats-row'>
-                    <span class='stat-label'>Skewness</span>
-                    <span class='stat-val'>{skew_val:+.3f}</span>
-                </div>
-                <div class='stats-row'>
-                    <span class='stat-label'>Kurtosis</span>
-                    <span class='stat-val'>{kurt_val:+.3f}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
-
-            # Threshold input
-            _, th_col, _ = st.columns([0.15, 0.7, 0.15])
-            with th_col:
-                st.markdown("<div style='text-align:center; font-size:0.82rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;'>Threshold (%)</div>", unsafe_allow_html=True)
-                threshold_pct = st.number_input(
-                    "", min_value=0.0, max_value=100.0, value=5.0,
-                    step=0.5, format="%.1f", label_visibility="collapsed",
-                )
-
-            thr = float(threshold_pct)
-            pos_days = int((vals >= +thr).sum())
-            neg_days = int((vals <= -thr).sum())
-
-            st.markdown("<div style='text-align:center; font-size:0.82rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; margin-top:1rem;'>Days beyond threshold</div>", unsafe_allow_html=True)
-
-            k1, k2 = st.columns(2)
-            with k1:
-                st.markdown(f"""
-                <div class='count-card positive'>
-                    <div class='count-label'>≥ +{thr:.1f}%</div>
-                    <div class='count-val'>{pos_days}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with k2:
-                st.markdown(f"""
-                <div class='count-card negative'>
-                    <div class='count-label'>≤ -{thr:.1f}%</div>
-                    <div class='count-val'>{neg_days}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-
-# =============================================
-# Section 5 — Distribution of Monthly Returns
-# =============================================
-st.markdown("<div class='section-header'>📅 Distribution of Monthly Returns</div>", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-.monthly-heat-wrap { width: 90%; margin: 0 auto; }
-.monthly-heat {
-    border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-size: 0.88rem; font-family: 'Inter', sans-serif;
-}
-.monthly-heat th, .monthly-heat td {
-    border: 1px solid #e5e7eb;
-    padding: 6px 4px; text-align: center; vertical-align: middle;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.monthly-heat thead th {
-    background: #f9fafb; font-weight: 700; font-size: 0.76rem;
-    color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em;
-}
-.monthly-heat tfoot td { background: #f9fafb; font-weight: 700; color: #374151; }
-.monthly-heat td.year-col, .monthly-heat th.year-col { width: 6.5%; font-weight: 700; color: #374151; }
-.monthly-heat th.mon-col, .monthly-heat td.mon-col { width: 6.5%; }
-.monthly-heat th.ytd-col, .monthly-heat td.ytd-col { width: 7%; font-weight: 800; }
-.monthly-heat .cell { color: #111827; font-weight: 600; }
-.monthly-heat .na { color: #9ca3af; font-weight: 500; }
-</style>
-""", unsafe_allow_html=True)
-
-available_labels: list[str] = []
-label_to_series: dict[str, pd.Series] = {}
-if show_benchmark and close_bench is not None and not close_bench.empty:
-    available_labels.append(benchmark.upper())
-    label_to_series[benchmark.upper()] = close_bench
-for sys, rets in dict_system_rets.items():
-    if not rets.empty:
-        available_labels.append(sys)
-        label_to_series[sys] = rets
-for t, s in dict_closes.items():
-    if not s.empty:
-        available_labels.append(t.upper())
-        label_to_series[t.upper()] = s
-
-if not available_labels:
-    st.info("Añade al menos un ticker, sistema o benchmark.")
-else:
-    _, sel_col2, _ = st.columns([0.425, 0.15, 0.425])
-    with sel_col2:
-        monthly_label = st.selectbox("Serie mensual", available_labels, index=0, label_visibility="collapsed")
-
-    ser = label_to_series[monthly_label].loc[current_start:current_end]
-    if ser.empty:
-        st.info("No hay datos en el rango seleccionado para esta serie.")
-    else:
-        if monthly_label in dict_system_rets:
-            m_ret = ser.resample("ME").apply(lambda x: (1 + x).prod() - 1) * 100
+    c1, c2, c3 = st.columns([0.30, 0.35, 0.35], gap="small")
+    with c1:
+        if summary_rows:
+            st.markdown(render_summary_table(summary_rows), unsafe_allow_html=True)
         else:
-            m_close = ser.resample("ME").last()
-            m_ret = m_close.pct_change() * 100
+            st.info("Sin datos en el rango seleccionado.")
+    with c2:
+        st.markdown(render_top_table("Top Daily Returns", "🚀", top_dict, SERIES_COLOR), unsafe_allow_html=True)
+    with c3:
+        st.markdown(render_top_table("Worst Daily Returns", "🔥", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
 
-        df_m = m_ret.to_frame("ret").dropna(how="all")
-        df_m["Year"] = df_m.index.year
-        df_m["Month"] = df_m.index.month
-        pivot = df_m.pivot(index="Year", columns="Month", values="ret").sort_index()
-        yret = ((1.0 + pivot / 100.0).prod(axis=1) - 1.0) * 100.0
-        avg_row = pivot.mean(axis=0)
-        avg_y = yret.mean()
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
-        def bg_color(v: float) -> str:
-            if pd.isna(v):
-                return ""
-            lim = 20.0
-            x = max(-lim, min(lim, float(v)))
-            if x >= 0:
-                alpha = x / lim
-                r1, g1, b1 = 220, 252, 231
-                r2, g2, b2 = 22, 163, 74
+    # Section 2 — Equity & Drawdown
+    c_title, c_ctrl = st.columns([0.75, 0.25])
+    with c_title:
+        st.markdown("<div class='section-header'>📈 Equity & Drawdown</div>", unsafe_allow_html=True)
+    with c_ctrl:
+        st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+        col_u, col_s = st.columns(2)
+        with col_u:
+            unit_choice = st.radio("", options=["$", "%"], index=0, horizontal=True, label_visibility="collapsed")
+        with col_s:
+            scale_choice = st.radio("", options=["Lin", "Log"], index=0, horizontal=True, label_visibility="collapsed")
+
+    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+    equity_fig = plot_equity(
+        dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
+        show_bench=show_benchmark, unit=unit_choice, scale=scale_choice,
+        series_color=SERIES_COLOR,
+    )
+    st.plotly_chart(equity_fig, use_container_width=True, config={"displayModeBar": False})
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+    dd_fig = plot_dd(
+        dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
+        show_bench=show_benchmark, series_color=SERIES_COLOR,
+    )
+    st.plotly_chart(dd_fig, use_container_width=True, config={"displayModeBar": False})
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    legend_items = [
+        f"<span style='display:inline-flex; align-items:center; gap:5px; margin-right:14px;'>"
+        f"<span style='width:18px; height:4px; border-radius:2px; background:{SERIES_COLOR.get(lab, '#111827')}; display:inline-block;'></span>"
+        f"<span style='font-size:0.85rem; font-weight:600; color:#374151;'>{lab}</span>"
+        f"</span>"
+        for lab in ordered_labels
+    ]
+    st.markdown(
+        "<div style='text-align:center; margin-top:-0.5rem; margin-bottom:1rem;'>"
+        + "".join(legend_items) + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+
+    # Section 3 — Correlation Matrix
+    st.markdown("<div class='section-header'>🪢 Correlation Matrix</div>", unsafe_allow_html=True)
+    if len(daily_map) >= 2:
+        ddf = pd.concat(list(daily_map.values()), axis=1)
+        ddf.columns = list(daily_map.keys())
+        ddf = ddf.dropna(how="all")
+        corr_df = ddf.corr(method="pearson", min_periods=3)
+        ordered_corr = list(daily_map.keys())
+        corr_df = corr_df.reindex(index=ordered_corr, columns=ordered_corr)
+        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+        st.plotly_chart(
+            corr_heatmap_figure(corr_df, ordered_corr, BENCH_COLOR, SERIES_COLOR),
+            use_container_width=True, config={"displayModeBar": False},
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.info("Añade al menos **dos** series con datos en el periodo para ver la correlación.")
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+
+    # Section 4 — Distribution of Daily Returns
+    st.markdown("<div class='section-header'>📊 Distribution of Daily Returns</div>", unsafe_allow_html=True)
+
+    labels_all = (
+        [t.upper() for t in tickers if t.upper() in daily_map]
+        + [s for s in systems if s in daily_map]
+        + ([benchmark.upper()] if show_benchmark and benchmark.upper() in daily_map else [])
+    )
+
+    if not labels_all:
+        st.info("No hay series disponibles para el periodo seleccionado.")
+    else:
+        _, sel_col, _ = st.columns([0.425, 0.15, 0.425])
+        with sel_col:
+            selected_label = st.selectbox("Serie", labels_all, index=0, label_visibility="collapsed")
+
+        vals = daily_map[selected_label].dropna() * 100.0
+        if vals.empty:
+            st.info("No hay datos de retornos diarios para la serie seleccionada.")
+        else:
+            mu = float(vals.mean())
+            sigma = float(vals.std(ddof=1)) if len(vals) > 1 else 0.0
+            skew_val = float(vals.skew()) if len(vals) > 2 else 0.0
+            kurt_val = float(vals.kurtosis()) if len(vals) > 3 else 0.0
+
+            col_plot, col_side = st.columns([0.75, 0.25], gap="large")
+
+            hist_fig = go.Figure()
+            series_col = SERIES_COLOR.get(selected_label, "#6366f1")
+            hist_fig.add_trace(go.Histogram(
+                x=vals, nbinsx=100, name=selected_label,
+                marker=dict(color=series_col, line=dict(color="white", width=0.3)),
+                opacity=0.9,
+                hovertemplate="%{x:.2f}%<extra></extra>",
+            ))
+            for k, opac in zip((3, 2, 1), (0.08, 0.13, 0.20)):
+                x0, x1 = mu - k * sigma, mu + k * sigma
+                if np.isfinite(x0) and np.isfinite(x1):
+                    hist_fig.add_vrect(x0=x0, x1=x1, fillcolor="#9ca3af", opacity=opac, line_width=0)
+            hist_fig.add_vline(x=mu, line=dict(color="#111827", width=2))
+            for k in (1, 2, 3):
+                for xk in (mu + k * sigma, mu - k * sigma):
+                    hist_fig.add_vline(x=xk, line=dict(color="#6b7280", width=1, dash="dash"))
+            hist_fig.add_annotation(x=mu, y=1.06, xref="x", yref="paper", text="μ",
+                                     showarrow=False, font=dict(size=12, color="#111827"))
+            for k, lbl in zip((1, 2, 3), ("±1σ", "±2σ", "±3σ")):
+                for sign, prefix in ((1, "+"), (-1, "-")):
+                    hist_fig.add_annotation(
+                        x=mu + sign * k * sigma, y=1.06, xref="x", yref="paper",
+                        text=f"{prefix}{lbl}", showarrow=False, font=dict(size=10, color="#6b7280"),
+                    )
+            _apply_layout(hist_fig, "", height=460)
+            hist_fig.update_layout(
+                xaxis_title="Daily Return (%)",
+                yaxis=dict(title="Frequency", side="left", showgrid=True,
+                           gridcolor="#f3f4f6", tickfont=dict(size=11)),
+                bargap=0.02, showlegend=False,
+            )
+
+            with col_plot:
+                st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+                st.plotly_chart(hist_fig, use_container_width=True, config={"displayModeBar": False})
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with col_side:
+                st.markdown(f"""
+                <div class='stats-card'>
+                    <div class='stats-title'>Statistics</div>
+                    <div class='stats-row'>
+                        <span class='stat-label'>Mean (μ)</span>
+                        <span class='stat-val'>{mu:+.3f}%</span>
+                    </div>
+                    <div class='stats-row'>
+                        <span class='stat-label'>Std Dev (σ)</span>
+                        <span class='stat-val'>{sigma:.3f}%</span>
+                    </div>
+                    <div class='stats-row'>
+                        <span class='stat-label'>Skewness</span>
+                        <span class='stat-val'>{skew_val:+.3f}</span>
+                    </div>
+                    <div class='stats-row'>
+                        <span class='stat-label'>Kurtosis</span>
+                        <span class='stat-val'>{kurt_val:+.3f}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+
+                _, th_col, _ = st.columns([0.15, 0.7, 0.15])
+                with th_col:
+                    st.markdown("<div style='text-align:center; font-size:0.82rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;'>Threshold (%)</div>", unsafe_allow_html=True)
+                    threshold_pct = st.number_input(
+                        "", min_value=0.0, max_value=100.0, value=5.0,
+                        step=0.5, format="%.1f", label_visibility="collapsed",
+                    )
+
+                thr = float(threshold_pct)
+                pos_days = int((vals >= +thr).sum())
+                neg_days = int((vals <= -thr).sum())
+
+                st.markdown("<div style='text-align:center; font-size:0.82rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; margin-top:1rem;'>Days beyond threshold</div>", unsafe_allow_html=True)
+
+                k1, k2 = st.columns(2)
+                with k1:
+                    st.markdown(f"""
+                    <div class='count-card positive'>
+                        <div class='count-label'>≥ +{thr:.1f}%</div>
+                        <div class='count-val'>{pos_days}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with k2:
+                    st.markdown(f"""
+                    <div class='count-card negative'>
+                        <div class='count-label'>≤ -{thr:.1f}%</div>
+                        <div class='count-val'>{neg_days}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+
+    # Section 5 — Distribution of Monthly Returns
+    st.markdown("<div class='section-header'>📅 Distribution of Monthly Returns</div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <style>
+    .monthly-heat-wrap { width: 90%; margin: 0 auto; }
+    .monthly-heat {
+        border-collapse: collapse; width: 100%; table-layout: fixed;
+        font-size: 0.88rem; font-family: 'Inter', sans-serif;
+    }
+    .monthly-heat th, .monthly-heat td {
+        border: 1px solid #e5e7eb;
+        padding: 6px 4px; text-align: center; vertical-align: middle;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .monthly-heat thead th {
+        background: #f9fafb; font-weight: 700; font-size: 0.76rem;
+        color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .monthly-heat tfoot td { background: #f9fafb; font-weight: 700; color: #374151; }
+    .monthly-heat td.year-col, .monthly-heat th.year-col { width: 6.5%; font-weight: 700; color: #374151; }
+    .monthly-heat th.mon-col, .monthly-heat td.mon-col { width: 6.5%; }
+    .monthly-heat th.ytd-col, .monthly-heat td.ytd-col { width: 7%; font-weight: 800; }
+    .monthly-heat .cell { color: #111827; font-weight: 600; }
+    .monthly-heat .na { color: #9ca3af; font-weight: 500; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    available_labels = []
+    label_to_series = {}
+    if show_benchmark and close_bench is not None and not close_bench.empty:
+        available_labels.append(benchmark.upper())
+        label_to_series[benchmark.upper()] = close_bench
+    for sys, rets in dict_system_rets.items():
+        if not rets.empty:
+            available_labels.append(sys)
+            label_to_series[sys] = rets
+    for t, s in dict_closes.items():
+        if not s.empty:
+            available_labels.append(t.upper())
+            label_to_series[t.upper()] = s
+
+    if not available_labels:
+        st.info("Añade al menos un ticker, sistema o benchmark.")
+    else:
+        _, sel_col2, _ = st.columns([0.425, 0.15, 0.425])
+        with sel_col2:
+            monthly_label = st.selectbox("Serie mensual", available_labels, index=0, label_visibility="collapsed")
+
+        ser = label_to_series[monthly_label].loc[current_start:current_end]
+        if ser.empty:
+            st.info("No hay datos en el rango seleccionado para esta serie.")
+        else:
+            if monthly_label in dict_system_rets:
+                m_ret = ser.resample("ME").apply(lambda x: (1 + x).prod() - 1) * 100
             else:
-                alpha = -x / lim
-                r1, g1, b1 = 254, 226, 226
-                r2, g2, b2 = 220, 38, 38
-            r = int(r1 + (r2 - r1) * alpha)
-            g = int(g1 + (g2 - g1) * alpha)
-            b = int(b1 + (b2 - b1) * alpha)
-            return f"background-color: rgb({r},{g},{b});"
+                m_close = ser.resample("ME").last()
+                m_ret = m_close.pct_change() * 100
 
-        months_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            df_m = m_ret.to_frame("ret").dropna(how="all")
+            df_m["Year"] = df_m.index.year
+            df_m["Month"] = df_m.index.month
+            pivot = df_m.pivot(index="Year", columns="Month", values="ret").sort_index()
+            yret = ((1.0 + pivot / 100.0).prod(axis=1) - 1.0) * 100.0
+            avg_row = pivot.mean(axis=0)
+            avg_y = yret.mean()
 
-        html = ["<div class='monthly-heat-wrap'><table class='monthly-heat'>"]
-        html.append("<thead><tr><th class='year-col'>Year</th>")
-        for m in months_abbr:
-            html.append(f"<th class='mon-col'>{m}</th>")
-        html.append("<th class='ytd-col'>Yr%</th></tr></thead><tbody>")
-        for yr in pivot.index:
-            html.append(f"<tr><td class='year-col'>{yr}</td>")
+            months_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+            html = ["<div class='monthly-heat-wrap'><table class='monthly-heat'>"]
+            html.append("<thead><tr><th class='year-col'>Year</th>")
+            for m in months_abbr:
+                html.append(f"<th class='mon-col'>{m}</th>")
+            html.append("<th class='ytd-col'>Yr%</th></tr></thead><tbody>")
+            for yr in pivot.index:
+                html.append(f"<tr><td class='year-col'>{yr}</td>")
+                for m_idx in range(1, 13):
+                    v = pivot.loc[yr].get(m_idx, np.nan)
+                    if pd.isna(v):
+                        html.append("<td class='mon-col na'>—</td>")
+                    else:
+                        html.append(f"<td class='mon-col' style='{bg_color(v)}'>"
+                                    f"<span class='cell'>{v:+.1f}%</span></td>")
+                vy = yret.get(yr, np.nan)
+                if pd.isna(vy):
+                    html.append("<td class='ytd-col na'>—</td>")
+                else:
+                    html.append(f"<td class='ytd-col' style='{bg_color(vy)}'>"
+                                f"<span class='cell'>{vy:+.1f}%</span></td>")
+                html.append("</tr>")
+            html.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
             for m_idx in range(1, 13):
-                v = pivot.loc[yr].get(m_idx, np.nan)
+                v = avg_row.get(m_idx, np.nan)
                 if pd.isna(v):
                     html.append("<td class='mon-col na'>—</td>")
                 else:
                     html.append(f"<td class='mon-col' style='{bg_color(v)}'>"
                                 f"<span class='cell'>{v:+.1f}%</span></td>")
-            vy = yret.get(yr, np.nan)
-            if pd.isna(vy):
+            if pd.isna(avg_y):
                 html.append("<td class='ytd-col na'>—</td>")
             else:
-                html.append(f"<td class='ytd-col' style='{bg_color(vy)}'>"
-                            f"<span class='cell'>{vy:+.1f}%</span></td>")
-            html.append("</tr>")
-        html.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
-        for m_idx in range(1, 13):
-            v = avg_row.get(m_idx, np.nan)
-            if pd.isna(v):
-                html.append("<td class='mon-col na'>—</td>")
+                html.append(f"<td class='ytd-col' style='{bg_color(avg_y)}'>"
+                            f"<span class='cell'>{avg_y:+.1f}%</span></td>")
+            html.append("</tr></tfoot></table></div>")
+            st.markdown("".join(html), unsafe_allow_html=True)
+
+
+# =============================================
+# TAB 2 — Simulador de Cartera
+# =============================================
+with tab_simulator:
+
+    # Series disponibles: sistemas + tickers (sin benchmark, sin cash)
+    sim_series_keys = [s for s in systems if s in dict_system_rets] + \
+                      [t.upper() for t in tickers if t.upper() in dict_closes]
+
+    if not sim_series_keys:
+        st.info("Añade al menos un **ticker** o **sistema** en la barra lateral para usar el simulador.")
+    else:
+        # ---- Construir retornos mensuales de cada serie ----
+        @st.cache_data(show_spinner=False)
+        def get_monthly_returns(series_key: str, start, end) -> pd.Series:
+            if series_key in dict_system_rets:
+                daily = dict_system_rets[series_key].loc[start:end]
+                m = daily.resample("ME").apply(lambda x: (1 + x).prod() - 1)
             else:
-                html.append(f"<td class='mon-col' style='{bg_color(v)}'>"
-                            f"<span class='cell'>{v:+.1f}%</span></td>")
-        if pd.isna(avg_y):
-            html.append("<td class='ytd-col na'>—</td>")
+                close = dict_closes[series_key].loc[start:end]
+                m = close.resample("ME").last().pct_change()
+            m.name = series_key
+            return m.dropna()
+
+        monthly_series = {}
+        for key in sim_series_keys:
+            ms = get_monthly_returns(key, current_start, current_end)
+            if not ms.empty:
+                monthly_series[key] = ms
+
+        if not monthly_series:
+            st.info("No hay datos en el rango seleccionado para simular.")
         else:
-            html.append(f"<td class='ytd-col' style='{bg_color(avg_y)}'>"
-                        f"<span class='cell'>{avg_y:+.1f}%</span></td>")
-        html.append("</tr></tfoot></table></div>")
-        st.markdown("".join(html), unsafe_allow_html=True)
+            # Alinear todas las series al índice común
+            df_monthly = pd.concat(monthly_series.values(), axis=1).dropna()
+            df_monthly.columns = list(monthly_series.keys())
+
+            n_series = len(df_monthly.columns)
+            series_list = list(df_monthly.columns)
+
+            # ---- Controles: pesos + rebalanceo + cash ----
+            st.markdown("<div class='section-header'>⚖️ Pesos de la cartera</div>", unsafe_allow_html=True)
+
+            # Sliders de peso en columnas
+            weight_cols = st.columns(min(n_series + 1, 4))  # +1 para cash, máx 4 por fila
+            raw_weights = {}
+            default_w = max(5, round(100 / (n_series + 1) / 5) * 5)  # múltiplo de 5
+
+            for i, key in enumerate(series_list):
+                col_idx = i % len(weight_cols)
+                color = SERIES_COLOR.get(key, PALETTE[i % len(PALETTE)])
+                with weight_cols[col_idx]:
+                    st.markdown(f"<div style='color:{color}; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>{key}</div>", unsafe_allow_html=True)
+                    raw_weights[key] = st.slider(
+                        f"w_{key}", 0, 100, default_w, step=5,
+                        label_visibility="collapsed", key=f"sim_w_{key}"
+                    )
+
+            # Cash en la última columna
+            last_col_idx = n_series % len(weight_cols)
+            with weight_cols[last_col_idx]:
+                st.markdown("<div style='color:#9ca3af; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>Cash</div>", unsafe_allow_html=True)
+                w_cash_pct = st.slider("w_cash", 0, 100, 0, step=5,
+                                       label_visibility="collapsed", key="sim_w_cash")
+
+            total_w = sum(raw_weights.values()) + w_cash_pct
+
+            # Barra visual de pesos
+            if total_w > 0:
+                bar_segs = ""
+                for i, (key, w) in enumerate(raw_weights.items()):
+                    if w > 0:
+                        color = SERIES_COLOR.get(key, PALETTE[i % len(PALETTE)])
+                        pct = w / total_w * 100
+                        bar_segs += f"<div style='width:{pct:.1f}%; background:{color}; height:100%;'></div>"
+                if w_cash_pct > 0:
+                    pct = w_cash_pct / total_w * 100
+                    bar_segs += f"<div style='width:{pct:.1f}%; background:#9ca3af; height:100%;'></div>"
+                st.markdown(f"""
+                <div style='display:flex; height:10px; border-radius:5px; overflow:hidden;
+                            gap:2px; margin:0.5rem 0 0.25rem 0;'>{bar_segs}</div>
+                """, unsafe_allow_html=True)
+
+            # Indicador suma
+            sum_color = "#16a34a" if total_w == 100 else "#dc2626"
+            st.markdown(
+                f"<div style='font-size:0.82rem; font-weight:700; color:{sum_color}; margin-bottom:0.5rem;'>"
+                f"Suma de pesos: {total_w}% {'✓' if total_w == 100 else '— deben sumar 100%'}</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ---- Rebalanceo + Cash rate ----
+            ctrl1, ctrl2, _ = st.columns([0.25, 0.25, 0.5])
+            with ctrl1:
+                rebal_options = {"Mensual": 1, "Trimestral": 3, "Semestral": 6, "Anual": 12, "Sin rebalanceo": 0}
+                rebal_label = st.selectbox("Rebalanceo", list(rebal_options.keys()), index=1)
+                rebal_months = rebal_options[rebal_label]
+            with ctrl2:
+                cash_rate_annual = st.number_input("Cash rate (% anual)", min_value=0.0, max_value=10.0,
+                                                    value=2.0, step=0.25, format="%.2f")
+
+            if total_w != 100:
+                st.warning("Ajusta los pesos para que sumen exactamente 100%.")
+            else:
+                # ---- Simulación ----
+                weights = {k: v / 100.0 for k, v in raw_weights.items()}
+                w_cash = w_cash_pct / 100.0
+                cash_rate_m = (1 + cash_rate_annual / 100) ** (1 / 12) - 1
+
+                current_w = {k: weights[k] for k in series_list}
+                current_w_cash = w_cash
+
+                equity = float(initial_capital)
+                equity_curve = [equity]
+                monthly_rets_port = []
+                dates_sim = [df_monthly.index[0] - pd.DateOffset(months=1)]
+
+                for i, (dt, row) in enumerate(df_monthly.iterrows()):
+                    r_port = sum(current_w[k] * row[k] for k in series_list) + current_w_cash * cash_rate_m
+                    equity *= (1 + r_port)
+                    equity_curve.append(equity)
+                    monthly_rets_port.append(r_port)
+                    dates_sim.append(dt)
+
+                    # Rebalanceo
+                    if rebal_months > 0 and (i + 1) % rebal_months == 0:
+                        current_w = {k: weights[k] for k in series_list}
+                        current_w_cash = w_cash
+                    elif rebal_months > 0:
+                        factor = 1 + r_port
+                        if abs(factor) > 1e-9:
+                            for k in series_list:
+                                current_w[k] *= (1 + row[k]) / factor
+                            current_w_cash *= (1 + cash_rate_m) / factor
+
+                # Métricas
+                n_years = len(monthly_rets_port) / 12
+                total_ret = equity / float(initial_capital)
+                cagr_sim = total_ret ** (1 / n_years) - 1 if n_years > 0 else np.nan
+                vol_sim = float(np.std(monthly_rets_port) * np.sqrt(12)) if monthly_rets_port else np.nan
+                sharpe_sim = cagr_sim / vol_sim if vol_sim and vol_sim > 0 else np.nan
+
+                cum = np.array(equity_curve)
+                roll_max = np.maximum.accumulate(cum)
+                dd_curve_sim = (cum - roll_max) / roll_max * 100
+                max_dd_sim = float(dd_curve_sim.min())
+
+                # Rentabilidades anuales
+                df_eq_sim = pd.DataFrame({"equity": equity_curve[1:]}, index=df_monthly.index)
+                annual_sim = df_eq_sim["equity"].resample("YE").last().pct_change().dropna()
+                annual_sim.index = annual_sim.index.year
+
+                # ---- KPI cards ----
+                st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-header'>📊 Resultados</div>", unsafe_allow_html=True)
+
+                kc1, kc2, kc3, kc4, kc5 = st.columns(5)
+                def _kpi(col, label, value, color="#111827"):
+                    col.markdown(f"""
+                    <div class='kpi-card'>
+                        <div class='kpi-label'>{label}</div>
+                        <div class='kpi-value' style='color:{color};'>{value}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                _kpi(kc1, "CAGR", f"{cagr_sim*100:.2f}%", "#16a34a" if cagr_sim > 0 else "#dc2626")
+                _kpi(kc2, "Volatilidad", f"{vol_sim*100:.2f}%")
+                _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#dc2626")
+                _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#dc2626")
+                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#dc2626")
+
+                st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
+                # ---- Gráficos ----
+                sim_tab1, sim_tab2, sim_tab3 = st.tabs(["📈 Equity", "📉 Drawdown", "📅 Rentabilidad anual"])
+
+                with sim_tab1:
+                    fig_eq = go.Figure()
+                    fig_eq.add_trace(go.Scatter(
+                        x=dates_sim, y=equity_curve, mode="lines", name="Cartera",
+                        line=dict(color="#6366f1", width=2.5),
+                        fill="tozeroy", fillcolor="rgba(99,102,241,0.07)",
+                        hovertemplate="%{x|%b %Y}<br>$%{y:,.0f}<extra></extra>",
+                    ))
+                    _apply_layout(fig_eq, "Equity Curve", height=380)
+                    fig_eq.update_yaxes(tickformat="$,.0f", side="right")
+                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+                    st.plotly_chart(fig_eq, use_container_width=True, config={"displayModeBar": False})
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                with sim_tab2:
+                    fig_dd2 = go.Figure()
+                    fig_dd2.add_trace(go.Scatter(
+                        x=dates_sim, y=dd_curve_sim, mode="lines", name="Drawdown",
+                        line=dict(color="#e11d48", width=2),
+                        fill="tozeroy", fillcolor="rgba(225,29,72,0.08)",
+                        hovertemplate="%{x|%b %Y}<br>%{y:.2f}%<extra></extra>",
+                    ))
+                    _apply_layout(fig_dd2, "Drawdown (%)", height=380)
+                    fig_dd2.update_yaxes(ticksuffix=" %", side="right")
+                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+                    st.plotly_chart(fig_dd2, use_container_width=True, config={"displayModeBar": False})
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                with sim_tab3:
+                    bar_colors = ["#16a34a" if v >= 0 else "#dc2626" for v in annual_sim.values]
+                    fig_bar = go.Figure()
+                    fig_bar.add_trace(go.Bar(
+                        x=annual_sim.index.astype(str),
+                        y=(annual_sim * 100).round(2),
+                        marker_color=bar_colors,
+                        hovertemplate="%{x}<br>%{y:.2f}%<extra></extra>",
+                    ))
+                    _apply_layout(fig_bar, "Annual Returns (%)", height=380)
+                    fig_bar.update_layout(bargap=0.3)
+                    fig_bar.update_yaxes(ticksuffix=" %", side="right")
+                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+                    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                # ---- Tabla mensual de la cartera ----
+                st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-header'>📅 Monthly Returns — Cartera</div>", unsafe_allow_html=True)
+
+                df_mport = pd.DataFrame({"ret": [r * 100 for r in monthly_rets_port]}, index=df_monthly.index)
+                df_mport["Year"] = df_mport.index.year
+                df_mport["Month"] = df_mport.index.month
+                pivot_p = df_mport.pivot(index="Year", columns="Month", values="ret").sort_index()
+                yret_p = ((1.0 + pivot_p / 100.0).prod(axis=1) - 1.0) * 100.0
+                avg_row_p = pivot_p.mean(axis=0)
+                avg_y_p = yret_p.mean()
+
+                months_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+                html_p = ["<div class='monthly-heat-wrap'><table class='monthly-heat'>"]
+                html_p.append("<thead><tr><th class='year-col'>Year</th>")
+                for m in months_abbr:
+                    html_p.append(f"<th class='mon-col'>{m}</th>")
+                html_p.append("<th class='ytd-col'>Yr%</th></tr></thead><tbody>")
+                for yr in pivot_p.index:
+                    html_p.append(f"<tr><td class='year-col'>{yr}</td>")
+                    for m_idx in range(1, 13):
+                        v = pivot_p.loc[yr].get(m_idx, np.nan)
+                        if pd.isna(v):
+                            html_p.append("<td class='mon-col na'>—</td>")
+                        else:
+                            html_p.append(f"<td class='mon-col' style='{bg_color(v)}'>"
+                                          f"<span class='cell'>{v:+.1f}%</span></td>")
+                    vy = yret_p.get(yr, np.nan)
+                    if pd.isna(vy):
+                        html_p.append("<td class='ytd-col na'>—</td>")
+                    else:
+                        html_p.append(f"<td class='ytd-col' style='{bg_color(vy)}'>"
+                                      f"<span class='cell'>{vy:+.1f}%</span></td>")
+                    html_p.append("</tr>")
+                html_p.append("</tbody><tfoot><tr><td class='year-col'>Avg</td>")
+                for m_idx in range(1, 13):
+                    v = avg_row_p.get(m_idx, np.nan)
+                    if pd.isna(v):
+                        html_p.append("<td class='mon-col na'>—</td>")
+                    else:
+                        html_p.append(f"<td class='mon-col' style='{bg_color(v)}'>"
+                                      f"<span class='cell'>{v:+.1f}%</span></td>")
+                if pd.isna(avg_y_p):
+                    html_p.append("<td class='ytd-col na'>—</td>")
+                else:
+                    html_p.append(f"<td class='ytd-col' style='{bg_color(avg_y_p)}'>"
+                                  f"<span class='cell'>{avg_y_p:+.1f}%</span></td>")
+                html_p.append("</tr></tfoot></table></div>")
+                st.markdown("".join(html_p), unsafe_allow_html=True)
+
+                st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+                st.caption(
+                    "Simulación basada en retornos históricos. "
+                    "El rebalanceo se aplica al final de cada periodo. "
+                    "El cash se remunera al tipo anual configurado. "
+                    "Resultados pasados no garantizan rentabilidades futuras."
+                )
