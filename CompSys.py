@@ -223,33 +223,11 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 [data-testid="stSidebar"] .stMarkdown p { font-size: 0.85rem; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; }
 [data-testid="stSidebar"] label { color: #d1d5db !important; }
-/* Checkbox: texto blanco */
-[data-testid="stSidebar"] [data-testid="stCheckbox"] p,
-[data-testid="stSidebar"] [data-testid="stCheckbox"] label,
-[data-testid="stSidebar"] [data-testid="stCheckbox"] span { color: #ffffff !important; }
 [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
+/* "Use benchmark": solo texto blanco (sin tocar fondo del checkbox) */
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label > div:last-child,
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label p { color: #ffffff !important; }
 [data-testid="stSidebar"] hr { border-color: #374151; }
-/* Checkbox: fondo naranja (tick) */
-[data-testid="stSidebar"] [data-baseweb="checkbox"] [data-checked="true"],
-[data-testid="stSidebar"] [data-baseweb="checkbox"] input:checked + div { background-color: #FE880C !important; border-color: #FE880C !important; }
-[data-testid="stSidebar"] [data-baseweb="checkbox"] svg { fill: #ffffff !important; }
-/* Slider naranja */
-[data-testid="stSidebar"] [role="slider"] { background: #FE880C !important; border-color: #FE880C !important; }
-[data-testid="stSidebar"] [data-baseweb="slider"] > div > div:nth-child(2) { background: #FE880C !important; }
-[data-testid="stSidebar"] input:focus { border-color: #FE880C !important; box-shadow: 0 0 0 1px #FE880C !important; }
-
-/* ── Number input: quitar línea vertical y bordes extra ── */
-[data-testid="stNumberInput"] [data-baseweb="input"] { border-top: none !important; border-bottom: none !important; }
-[data-testid="stNumberInput"] [data-baseweb="input"]::before,
-[data-testid="stNumberInput"] [data-baseweb="input"]::after { display: none !important; }
-[data-testid="stNumberInput"] button { border-left: none !important; }
-
-/* ── Slider: ocultar tooltip al hacer hover (todas las variantes) ── */
-[data-testid="stSlider"] [data-testid="stThumbValue"] { display: none !important; }
-[data-testid="stSlider"] div[data-baseweb="tooltip"] { display: none !important; }
-[data-testid="stSlider"] [role="tooltip"] { display: none !important; }
-div[data-baseweb="tooltip"] { display: none !important; }
-[class*="Tooltip"] { display: none !important; }
 
 /* ── Stats card ── */
 .stats-card {
