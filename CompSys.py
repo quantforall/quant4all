@@ -223,9 +223,16 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 [data-testid="stSidebar"] .stMarkdown p { font-size: 0.85rem; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; }
 [data-testid="stSidebar"] label { color: #d1d5db !important; }
-[data-testid="stSidebar"] .stCheckbox label { color: #d1d5db !important; }
+[data-testid="stSidebar"] .stCheckbox label { color: #ffffff !important; }
+[data-testid="stSidebar"] .stCheckbox span { color: #ffffff !important; }
 [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
 [data-testid="stSidebar"] hr { border-color: #374151; }
+/* Forzar naranja en todos los elementos activos del sidebar (radio, checkbox, slider) */
+[data-testid="stSidebar"] [role="slider"] { background: #FE880C !important; border-color: #FE880C !important; }
+[data-testid="stSidebar"] [data-baseweb="slider"] > div > div:nth-child(2) { background: #FE880C !important; }
+[data-testid="stSidebar"] [data-baseweb="checkbox"] svg { fill: #FE880C !important; }
+[data-testid="stSidebar"] [data-baseweb="radio"] div[aria-checked="true"] div { background: #FE880C !important; border-color: #FE880C !important; }
+[data-testid="stSidebar"] input:focus { border-color: #FE880C !important; box-shadow: 0 0 0 1px #FE880C !important; }
 
 /* ── Slider: ocultar tooltip feo al hacer hover ── */
 [data-testid="stSlider"] [data-testid="stThumbValue"] { display: none !important; }
@@ -912,14 +919,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-with st.expander("ℹ️ ¿Qué es esto?", expanded=False):
-    st.markdown("""
-📊 Compara activos y sistemas de trading de forma interactiva — rentabilidad, riesgo y correlación.
 
-🕹️ Usa la barra lateral para configurar capital, tickers, sistemas y rango temporal.
-
-📩 **Suscríbete gratis** a la newsletter y recibe el PDF con todos los detalles de los sistemas + acceso al grupo de Telegram con indicadores de Amplitud de Mercado.
-    """)
 
 # ---- Master label order: Systems → Tickers → Benchmark ----
 ordered_labels = []
@@ -1326,10 +1326,15 @@ with tab_simulator:
             # ---- Controles: pesos + rebalanceo + cash ----
             st.markdown("<div class='section-header'>⚖️ Pesos de la cartera</div>", unsafe_allow_html=True)
 
+            # Pesos por defecto: distribución equitativa entre series (sin cash), suma = 100
+            base_w = 100 // n_series
+            remainder_w = 100 - base_w * n_series
+            default_weights = {key: base_w + (remainder_w if i == 0 else 0)
+                               for i, key in enumerate(series_list)}
+
             # Sliders de peso en columnas
             weight_cols = st.columns(min(n_series + 1, 4))  # +1 para cash, máx 4 por fila
             raw_weights = {}
-            default_w = max(5, round(100 / (n_series + 1) / 5) * 5)  # múltiplo de 5
 
             for i, key in enumerate(series_list):
                 col_idx = i % len(weight_cols)
@@ -1337,7 +1342,7 @@ with tab_simulator:
                 with weight_cols[col_idx]:
                     st.markdown(f"<div style='color:{color}; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>{key}</div>", unsafe_allow_html=True)
                     raw_weights[key] = st.slider(
-                        f"w_{key}", 0, 100, default_w, step=5,
+                        f"w_{key}", 0, 100, default_weights[key], step=5,
                         label_visibility="collapsed", key=f"sim_w_{key}"
                     )
 
@@ -1378,7 +1383,7 @@ with tab_simulator:
             ctrl1, ctrl2, _ = st.columns([0.25, 0.25, 0.5])
             with ctrl1:
                 rebal_options = {"Mensual": 1, "Trimestral": 3, "Semestral": 6, "Anual": 12, "Sin rebalanceo": 0}
-                rebal_label = st.selectbox("Rebalanceo", list(rebal_options.keys()), index=1)
+                rebal_label = st.selectbox("Rebalanceo", list(rebal_options.keys()), index=3)
                 rebal_months = rebal_options[rebal_label]
             with ctrl2:
                 cash_rate_annual = st.number_input("Cash rate (% anual)", min_value=0.0, max_value=10.0,
