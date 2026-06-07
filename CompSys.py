@@ -1508,7 +1508,7 @@ with tab_simulator:
                     f"Si una serie empieza más tarde, la simulación se recorta al solape de todas."
                 )
 
-                kc1, kc2, kc3, kc4, kc5 = st.columns(5)
+                kc1, kc2, kc3, kc4 = st.columns(4)
                 def _kpi(col, label, value, color="#111827"):
                     col.markdown(f"""
                     <div class='kpi-card'>
@@ -1521,7 +1521,6 @@ with tab_simulator:
                 _kpi(kc2, "Volatilidad", f"{vol_sim*100:.2f}%")
                 _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#dc2626")
                 _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#dc2626")
-                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#dc2626")
 
                 st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
