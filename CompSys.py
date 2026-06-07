@@ -61,7 +61,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .q-divider {
     border: none;
     border-top: 1px solid #e5e7eb;
-    margin: 2rem 0;
+    margin: 1rem 0;
 }
 
 /* ── KPI Cards ── */
@@ -178,7 +178,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     border-radius: 14px;
     padding: 0.5rem 0.75rem 0.25rem 0.75rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    margin-bottom: 1rem;
+    margin-bottom: 0.25rem;
 }
 
 /* ── Monthly heat table ── */
@@ -219,9 +219,13 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
     min-width: 18rem;
-    background: #fafafa;
+    background: #0D0D0D;
 }
-[data-testid="stSidebar"] .stMarkdown p { font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+[data-testid="stSidebar"] .stMarkdown p { font-size: 0.85rem; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; }
+[data-testid="stSidebar"] label { color: #d1d5db !important; }
+[data-testid="stSidebar"] .stCheckbox label { color: #d1d5db !important; }
+[data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
+[data-testid="stSidebar"] hr { border-color: #374151; }
 
 /* ── Stats card ── */
 .stats-card {
@@ -265,9 +269,9 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .count-card.positive { background: #dcfce7; border: 1px solid #86efac; }
 .count-card.positive .count-label { color: #16a34a; }
 .count-card.positive .count-val { color: #15803d; }
-.count-card.negative { background: #fee2e2; border: 1px solid #fca5a5; }
-.count-card.negative .count-label { color: #dc2626; }
-.count-card.negative .count-val { color: #b91c1c; }
+.count-card.negative { background: #fff3e0; border: 1px solid #fdba74; }
+.count-card.negative .count-label { color: #FE880C; }
+.count-card.negative .count-val { color: #c45f00; }
 
 /* ── Hero ── */
 .hero-title {
@@ -277,17 +281,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     line-height: 1.2;
     margin-bottom: 0.25rem;
 }
-.hero-sub { color: #dc2626; }
-.hero-desc {
-    background: #f9fafb;
-    border-left: 4px solid #dc2626;
-    border-radius: 0 10px 10px 0;
-    padding: 0.85rem 1.25rem;
-    color: #374151;
-    font-size: 0.95rem;
-    line-height: 1.7;
-    margin-bottom: 0.5rem;
-}
+.hero-sub { color: #FE880C; }
 
 /* ── Radio / controls pill ── */
 div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
@@ -295,7 +289,7 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
 /* ── Newsletter button ── */
 .newsletter-btn {
     display: inline-block;
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    background: linear-gradient(135deg, #FE880C, #e06b00);
     color: #ffffff !important;
     text-decoration: none !important;
     padding: 0.55rem 1.4rem;
@@ -305,10 +299,10 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
     text-transform: uppercase;
     letter-spacing: 0.04em;
     transition: all 0.2s;
-    box-shadow: 0 3px 8px rgba(220,38,38,0.35);
+    box-shadow: 0 3px 8px rgba(254,136,12,0.40);
 }
 .newsletter-btn:hover {
-    box-shadow: 0 6px 16px rgba(220,38,38,0.45);
+    box-shadow: 0 6px 16px rgba(254,136,12,0.55);
     transform: translateY(-2px);
 }
 
@@ -369,7 +363,7 @@ with st.sidebar:
 
     with col_systems:
         st.markdown("**Quant4all Systems**")
-        system_choices = ["", "ROCStar", "All Stars", "Big Three", "TAA"]
+        system_choices = ["", "ROCStar", "All Stars", "TAA"]
         systems = []
         default_selection = ["All Stars", "ROCStar", "", ""]
         for i in range(4):
@@ -386,7 +380,7 @@ with st.sidebar:
 # -----------------------
 # Helpers
 # -----------------------
-PALETTE = ["#6366f1", "#e11d48", "#0891b2", "#d97706", "#16a34a", "#8b5cf6"]
+PALETTE = ["#6366f1", "#FE880C", "#0891b2", "#d97706", "#16a34a", "#8b5cf6"]
 BENCH_COLOR = "#9ca3af"
 
 
@@ -580,9 +574,9 @@ def render_summary_table(rows):
         if np.isnan(r["Total Return"]):
             tr += "<td>—</td><td>—</td><td>—</td><td>—</td>"
         else:
-            ret_color = "#16a34a" if r["Total Return"] >= 1 else "#dc2626"
-            cagr_color = "#16a34a" if r["CAGR"] >= 0 else "#dc2626"
-            dd_color = "#dc2626"
+            ret_color = "#16a34a" if r["Total Return"] >= 1 else "#FE880C"
+            cagr_color = "#16a34a" if r["CAGR"] >= 0 else "#FE880C"
+            dd_color = "#FE880C"
             tr += f"<td><span class='num' style='color:{ret_color}'>{r['Total Return']:.1f}x</span></td>"
             tr += f"<td><span class='num' style='color:{cagr_color}'>{r['CAGR']:.1f}%</span></td>"
             tr += f"<td><span class='num' style='color:{dd_color}'>{r['Max DD']:.1f}%</span></td>"
@@ -608,7 +602,7 @@ def render_top_table(title: str, icon: str, table_dict: dict, series_color: dict
                 row += "<td><span class='na' style='color:#d1d5db'>—</span></td>"
             else:
                 sign = "+" if r >= 0 else ""
-                num_color = "#16a34a" if r >= 0 else "#dc2626"
+                num_color = "#16a34a" if r >= 0 else "#FE880C"
                 row += (
                     "<td>"
                     f"<span class='num' style='color:{num_color}'>{sign}{r*100:.1f}%</span>"
@@ -649,7 +643,7 @@ def corr_heatmap_figure(corr_df, labels_order, bench_color, series_color):
     colorscale = [
         [0.0, "#16a34a"],
         [0.5, "#ffffff"],
-        [1.0, "#dc2626"],
+        [1.0, "#FE880C"],
     ]
     base_heatmap = go.Heatmap(
         z=z, x=labels, y=labels, zmin=-1, zmax=1,
@@ -909,14 +903,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class='hero-desc'>
-  📊 Compara activos y sistemas de trading de forma interactiva — rentabilidad, riesgo y correlación.<br>
-  🕹️ Usa la barra lateral para configurar capital, tickers, sistemas y rango temporal.<br>
-  📩 <strong style='color:#dc2626;'>Suscríbete gratis</strong> a la newsletter y recibe el PDF con todos los detalles de los sistemas,
-  acceso al grupo de Telegram con indicadores de Amplitud de Mercado y señales del sistema Big Three.
-</div>
-""", unsafe_allow_html=True)
+with st.expander("ℹ️ ¿Qué es esto?", expanded=False):
+    st.markdown("""
+📊 Compara activos y sistemas de trading de forma interactiva — rentabilidad, riesgo y correlación.
+
+🕹️ Usa la barra lateral para configurar capital, tickers, sistemas y rango temporal.
+
+📩 **Suscríbete gratis** a la newsletter y recibe el PDF con todos los detalles de los sistemas + acceso al grupo de Telegram con indicadores de Amplitud de Mercado.
+    """)
 
 # ---- Master label order: Systems → Tickers → Benchmark ----
 ordered_labels = []
@@ -1390,7 +1384,7 @@ with tab_simulator:
                 """, unsafe_allow_html=True)
 
             # Indicador suma
-            sum_color = "#16a34a" if total_w == 100 else "#dc2626"
+            sum_color = "#16a34a" if total_w == 100 else "#FE880C"
             st.markdown(
                 f"<div style='font-size:0.82rem; font-weight:700; color:{sum_color}; margin-bottom:0.5rem;'>"
                 f"Suma de pesos: {total_w}% {'✓' if total_w == 100 else '— deben sumar 100%'}</div>",
@@ -1471,11 +1465,11 @@ with tab_simulator:
                     </div>
                     """, unsafe_allow_html=True)
 
-                _kpi(kc1, "CAGR", f"{cagr_sim*100:.2f}%", "#16a34a" if cagr_sim > 0 else "#dc2626")
+                _kpi(kc1, "CAGR", f"{cagr_sim*100:.2f}%", "#16a34a" if cagr_sim > 0 else "#FE880C")
                 _kpi(kc2, "Volatilidad", f"{vol_sim*100:.2f}%")
-                _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#dc2626")
-                _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#dc2626")
-                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#dc2626")
+                _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#FE880C")
+                _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#FE880C")
+                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#FE880C")
 
                 st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
@@ -1500,7 +1494,7 @@ with tab_simulator:
                     fig_dd2 = go.Figure()
                     fig_dd2.add_trace(go.Scatter(
                         x=dates_sim, y=dd_curve_sim, mode="lines", name="Drawdown",
-                        line=dict(color="#e11d48", width=2),
+                        line=dict(color="#FE880C", width=2),
                         fill="tozeroy", fillcolor="rgba(225,29,72,0.08)",
                         hovertemplate="%{x|%b %Y}<br>%{y:.2f}%<extra></extra>",
                     ))
@@ -1511,7 +1505,7 @@ with tab_simulator:
                     st.markdown("</div>", unsafe_allow_html=True)
 
                 with sim_tab3:
-                    bar_colors = ["#16a34a" if v >= 0 else "#dc2626" for v in annual_sim.values]
+                    bar_colors = ["#16a34a" if v >= 0 else "#FE880C" for v in annual_sim.values]
                     fig_bar = go.Figure()
                     fig_bar.add_trace(go.Bar(
                         x=annual_sim.index.astype(str),
