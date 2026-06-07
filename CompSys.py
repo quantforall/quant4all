@@ -1376,26 +1376,34 @@ with tab_simulator:
             default_weights = {key: base_w + (remainder_w if i == 0 else 0)
                                for i, key in enumerate(series_list)}
 
-            # Sliders de peso en columnas
-            weight_cols = st.columns(min(n_series + 1, 4))  # +1 para cash, máx 4 por fila
+            # Lista de elementos a renderizar: activos + Cash (cada uno con su propia celda)
+            slider_items = [(k, SERIES_COLOR.get(k, PALETTE[i % len(PALETTE)]))
+                            for i, k in enumerate(series_list)]
+            slider_items.append(("Cash", "#9ca3af"))
+
             raw_weights = {}
+            w_cash_pct = 0
+            cols_per_row = 4  # máximo de sliders por fila
 
-            for i, key in enumerate(series_list):
-                col_idx = i % len(weight_cols)
-                color = SERIES_COLOR.get(key, PALETTE[i % len(PALETTE)])
-                with weight_cols[col_idx]:
-                    st.markdown(f"<div style='color:{color}; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>{key}</div>", unsafe_allow_html=True)
-                    raw_weights[key] = st.slider(
-                        f"w_{key}", 0, 100, default_weights[key], step=1,
-                        label_visibility="collapsed", key=f"sim_w_{key}"
-                    )
-
-            # Cash en la última columna
-            last_col_idx = n_series % len(weight_cols)
-            with weight_cols[last_col_idx]:
-                st.markdown("<div style='color:#9ca3af; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>Cash</div>", unsafe_allow_html=True)
-                w_cash_pct = st.slider("w_cash", 0, 100, 0, step=1,
-                                       label_visibility="collapsed", key="sim_w_cash")
+            for row_start in range(0, len(slider_items), cols_per_row):
+                row_items = slider_items[row_start:row_start + cols_per_row]
+                cols = st.columns(len(row_items))
+                for col, (key, color) in zip(cols, row_items):
+                    with col:
+                        st.markdown(
+                            f"<div style='color:{color}; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>{key}</div>",
+                            unsafe_allow_html=True,
+                        )
+                        if key == "Cash":
+                            w_cash_pct = st.slider(
+                                "w_cash", 0, 100, 0, step=1,
+                                label_visibility="collapsed", key="sim_w_cash",
+                            )
+                        else:
+                            raw_weights[key] = st.slider(
+                                f"w_{key}", 0, 100, default_weights[key], step=1,
+                                label_visibility="collapsed", key=f"sim_w_{key}",
+                            )
 
             total_w = sum(raw_weights.values()) + w_cash_pct
 
@@ -1456,16 +1464,19 @@ with tab_simulator:
                     monthly_rets_port.append(r_port)
                     dates_sim.append(dt)
 
-                    # Rebalanceo
+                    # 1) Derivar pesos según la rentabilidad de cada componente
+                    #    (buy & hold: el peso crece/decrece con su retorno relativo)
+                    factor = 1 + r_port
+                    if abs(factor) > 1e-9:
+                        for k in series_list:
+                            current_w[k] *= (1 + row[k]) / factor
+                        current_w_cash *= (1 + cash_rate_m) / factor
+
+                    # 2) Resetear a pesos objetivo en los puntos de rebalanceo
+                    #    (rebal_months == 0 → nunca resetea → buy & hold puro)
                     if rebal_months > 0 and (i + 1) % rebal_months == 0:
                         current_w = {k: weights[k] for k in series_list}
                         current_w_cash = w_cash
-                    elif rebal_months > 0:
-                        factor = 1 + r_port
-                        if abs(factor) > 1e-9:
-                            for k in series_list:
-                                current_w[k] *= (1 + row[k]) / factor
-                            current_w_cash *= (1 + cash_rate_m) / factor
 
                 # Métricas
                 n_years = len(monthly_rets_port) / 12
@@ -1487,6 +1498,15 @@ with tab_simulator:
                 # ---- KPI cards ----
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
                 st.markdown("<div class='section-header'>📊 Resultados</div>", unsafe_allow_html=True)
+
+                # Periodo realmente simulado (intersección común de todas las series)
+                sim_ini = df_monthly.index[0]
+                sim_fin = df_monthly.index[-1]
+                st.caption(
+                    f"📅 Periodo común simulado: **{sim_ini:%b %Y} → {sim_fin:%b %Y}** "
+                    f"({len(df_monthly)} meses · {n_series} activo(s)). "
+                    f"Si una serie empieza más tarde, la simulación se recorta al solape de todas."
+                )
 
                 kc1, kc2, kc3, kc4, kc5 = st.columns(5)
                 def _kpi(col, label, value, color="#111827"):
