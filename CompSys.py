@@ -1332,7 +1332,7 @@ with tab_simulator:
                 with weight_cols[col_idx]:
                     st.markdown(f"<div style='color:{color}; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>{key}</div>", unsafe_allow_html=True)
                     raw_weights[key] = st.slider(
-                        f"w_{key}", 0, 100, default_weights[key], step=5,
+                        f"w_{key}", 0, 100, default_weights[key], step=1,
                         label_visibility="collapsed", key=f"sim_w_{key}"
                     )
 
@@ -1340,7 +1340,7 @@ with tab_simulator:
             last_col_idx = n_series % len(weight_cols)
             with weight_cols[last_col_idx]:
                 st.markdown("<div style='color:#9ca3af; font-weight:700; font-size:0.85rem; margin-bottom:2px;'>Cash</div>", unsafe_allow_html=True)
-                w_cash_pct = st.slider("w_cash", 0, 100, 0, step=5,
+                w_cash_pct = st.slider("w_cash", 0, 100, 0, step=1,
                                        label_visibility="collapsed", key="sim_w_cash")
 
             total_w = sum(raw_weights.values()) + w_cash_pct
