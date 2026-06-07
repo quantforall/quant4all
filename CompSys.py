@@ -227,6 +227,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
 [data-testid="stSidebar"] hr { border-color: #374151; }
 
+/* ── Slider accent color → naranja ── */
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stThumbValue"],
+[data-testid="stSlider"] [role="slider"] { background: #FE880C !important; border-color: #FE880C !important; }
+[data-testid="stSlider"] [data-baseweb="slider"] > div > div:first-child { background: #374151 !important; }
+[data-testid="stSlider"] [data-baseweb="slider"] > div > div:nth-child(2) { background: #FE880C !important; }
+
 /* ── Stats card ── */
 .stats-card {
     background: #ffffff;
@@ -310,6 +316,10 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
 .sidebar-logo { text-align: center; margin-bottom: 1.2rem; }
 .sidebar-logo img { width: 72px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
 
+/* ── Quitar líneas negras del number_input ── */
+[data-testid="stNumberInput"] > div { border-top: none !important; border-bottom: none !important; }
+[data-testid="stNumberInput"] input { border-top: none !important; border-bottom: none !important; }
+
 /* hide default streamlit header/footer noise */
 #MainMenu, footer { visibility: hidden; }
 </style>
@@ -380,7 +390,7 @@ with st.sidebar:
 # -----------------------
 # Helpers
 # -----------------------
-PALETTE = ["#6366f1", "#FE880C", "#0891b2", "#d97706", "#16a34a", "#8b5cf6"]
+PALETTE = ["#6366f1", "#e11d48", "#0891b2", "#d97706", "#16a34a", "#8b5cf6"]
 BENCH_COLOR = "#9ca3af"
 
 
@@ -574,9 +584,9 @@ def render_summary_table(rows):
         if np.isnan(r["Total Return"]):
             tr += "<td>—</td><td>—</td><td>—</td><td>—</td>"
         else:
-            ret_color = "#16a34a" if r["Total Return"] >= 1 else "#FE880C"
-            cagr_color = "#16a34a" if r["CAGR"] >= 0 else "#FE880C"
-            dd_color = "#FE880C"
+            ret_color = "#16a34a" if r["Total Return"] >= 1 else "#dc2626"
+            cagr_color = "#16a34a" if r["CAGR"] >= 0 else "#dc2626"
+            dd_color = "#dc2626"
             tr += f"<td><span class='num' style='color:{ret_color}'>{r['Total Return']:.1f}x</span></td>"
             tr += f"<td><span class='num' style='color:{cagr_color}'>{r['CAGR']:.1f}%</span></td>"
             tr += f"<td><span class='num' style='color:{dd_color}'>{r['Max DD']:.1f}%</span></td>"
@@ -602,7 +612,7 @@ def render_top_table(title: str, icon: str, table_dict: dict, series_color: dict
                 row += "<td><span class='na' style='color:#d1d5db'>—</span></td>"
             else:
                 sign = "+" if r >= 0 else ""
-                num_color = "#16a34a" if r >= 0 else "#FE880C"
+                num_color = "#16a34a" if r >= 0 else "#dc2626"
                 row += (
                     "<td>"
                     f"<span class='num' style='color:{num_color}'>{sign}{r*100:.1f}%</span>"
@@ -643,7 +653,7 @@ def corr_heatmap_figure(corr_df, labels_order, bench_color, series_color):
     colorscale = [
         [0.0, "#16a34a"],
         [0.5, "#ffffff"],
-        [1.0, "#FE880C"],
+        [1.0, "#dc2626"],
     ]
     base_heatmap = go.Heatmap(
         z=z, x=labels, y=labels, zmin=-1, zmax=1,
@@ -1019,22 +1029,18 @@ with tab_compare:
         with col_s:
             scale_choice = st.radio("", options=["Lin", "Log"], index=0, horizontal=True, label_visibility="collapsed")
 
-    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
     equity_fig = plot_equity(
         dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
         show_bench=show_benchmark, unit=unit_choice, scale=scale_choice,
         series_color=SERIES_COLOR,
     )
     st.plotly_chart(equity_fig, use_container_width=True, config={"displayModeBar": False})
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
     dd_fig = plot_dd(
         dict_equities, df_bench, benchmark.upper() if show_benchmark else None,
         show_bench=show_benchmark, series_color=SERIES_COLOR,
     )
     st.plotly_chart(dd_fig, use_container_width=True, config={"displayModeBar": False})
-    st.markdown("</div>", unsafe_allow_html=True)
 
     legend_items = [
         f"<span style='display:inline-flex; align-items:center; gap:5px; margin-right:14px;'>"
@@ -1051,27 +1057,7 @@ with tab_compare:
 
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
-    # Section 3 — Correlation Matrix
-    st.markdown("<div class='section-header'>🪢 Correlation Matrix</div>", unsafe_allow_html=True)
-    if len(daily_map) >= 2:
-        ddf = pd.concat(list(daily_map.values()), axis=1)
-        ddf.columns = list(daily_map.keys())
-        ddf = ddf.dropna(how="all")
-        corr_df = ddf.corr(method="pearson", min_periods=3)
-        ordered_corr = list(daily_map.keys())
-        corr_df = corr_df.reindex(index=ordered_corr, columns=ordered_corr)
-        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-        st.plotly_chart(
-            corr_heatmap_figure(corr_df, ordered_corr, BENCH_COLOR, SERIES_COLOR),
-            use_container_width=True, config={"displayModeBar": False},
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.info("Añade al menos **dos** series con datos en el periodo para ver la correlación.")
-
-    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-
-    # Section 4 — Distribution of Daily Returns
+    # Section 3 — Distribution of Daily Returns
     st.markdown("<div class='section-header'>📊 Distribution of Daily Returns</div>", unsafe_allow_html=True)
 
     labels_all = (
@@ -1131,9 +1117,7 @@ with tab_compare:
             )
 
             with col_plot:
-                st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
                 st.plotly_chart(hist_fig, use_container_width=True, config={"displayModeBar": False})
-                st.markdown("</div>", unsafe_allow_html=True)
 
             with col_side:
                 st.markdown(f"""
@@ -1384,7 +1368,7 @@ with tab_simulator:
                 """, unsafe_allow_html=True)
 
             # Indicador suma
-            sum_color = "#16a34a" if total_w == 100 else "#FE880C"
+            sum_color = "#16a34a" if total_w == 100 else "#dc2626"
             st.markdown(
                 f"<div style='font-size:0.82rem; font-weight:700; color:{sum_color}; margin-bottom:0.5rem;'>"
                 f"Suma de pesos: {total_w}% {'✓' if total_w == 100 else '— deben sumar 100%'}</div>",
@@ -1465,11 +1449,11 @@ with tab_simulator:
                     </div>
                     """, unsafe_allow_html=True)
 
-                _kpi(kc1, "CAGR", f"{cagr_sim*100:.2f}%", "#16a34a" if cagr_sim > 0 else "#FE880C")
+                _kpi(kc1, "CAGR", f"{cagr_sim*100:.2f}%", "#16a34a" if cagr_sim > 0 else "#dc2626")
                 _kpi(kc2, "Volatilidad", f"{vol_sim*100:.2f}%")
-                _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#FE880C")
-                _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#FE880C")
-                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#FE880C")
+                _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#dc2626")
+                _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#dc2626")
+                _kpi(kc5, "Retorno total", f"{(total_ret - 1)*100:.0f}%", "#16a34a" if total_ret > 1 else "#dc2626")
 
                 st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
@@ -1486,26 +1470,22 @@ with tab_simulator:
                     ))
                     _apply_layout(fig_eq, "Equity Curve", height=380)
                     fig_eq.update_yaxes(tickformat="$,.0f", side="right")
-                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
                     st.plotly_chart(fig_eq, use_container_width=True, config={"displayModeBar": False})
-                    st.markdown("</div>", unsafe_allow_html=True)
 
                 with sim_tab2:
                     fig_dd2 = go.Figure()
                     fig_dd2.add_trace(go.Scatter(
                         x=dates_sim, y=dd_curve_sim, mode="lines", name="Drawdown",
-                        line=dict(color="#FE880C", width=2),
+                        line=dict(color="#e11d48", width=2),
                         fill="tozeroy", fillcolor="rgba(225,29,72,0.08)",
                         hovertemplate="%{x|%b %Y}<br>%{y:.2f}%<extra></extra>",
                     ))
                     _apply_layout(fig_dd2, "Drawdown (%)", height=380)
                     fig_dd2.update_yaxes(ticksuffix=" %", side="right")
-                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
                     st.plotly_chart(fig_dd2, use_container_width=True, config={"displayModeBar": False})
-                    st.markdown("</div>", unsafe_allow_html=True)
 
                 with sim_tab3:
-                    bar_colors = ["#16a34a" if v >= 0 else "#FE880C" for v in annual_sim.values]
+                    bar_colors = ["#16a34a" if v >= 0 else "#dc2626" for v in annual_sim.values]
                     fig_bar = go.Figure()
                     fig_bar.add_trace(go.Bar(
                         x=annual_sim.index.astype(str),
@@ -1516,9 +1496,24 @@ with tab_simulator:
                     _apply_layout(fig_bar, "Annual Returns (%)", height=380)
                     fig_bar.update_layout(bargap=0.3)
                     fig_bar.update_yaxes(ticksuffix=" %", side="right")
-                    st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
                     st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-                    st.markdown("</div>", unsafe_allow_html=True)
+
+                # ---- Correlation Matrix ----
+                st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-header'>🪢 Correlation Matrix</div>", unsafe_allow_html=True)
+                if len(daily_map) >= 2:
+                    ddf = pd.concat(list(daily_map.values()), axis=1)
+                    ddf.columns = list(daily_map.keys())
+                    ddf = ddf.dropna(how="all")
+                    corr_df = ddf.corr(method="pearson", min_periods=3)
+                    ordered_corr = list(daily_map.keys())
+                    corr_df = corr_df.reindex(index=ordered_corr, columns=ordered_corr)
+                    st.plotly_chart(
+                        corr_heatmap_figure(corr_df, ordered_corr, BENCH_COLOR, SERIES_COLOR),
+                        use_container_width=True, config={"displayModeBar": False},
+                    )
+                else:
+                    st.info("Añade al menos **dos** series con datos en el periodo para ver la correlación.")
 
                 # ---- Tabla mensual de la cartera ----
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
