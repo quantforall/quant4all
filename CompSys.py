@@ -1543,7 +1543,9 @@ with tab_simulator:
 
                 # ---- VaR (segunda fila, dos tarjetas) ----
                 st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
-                vc1, vc2 = st.columns(2)
+                # 4 columnas (no 2) para que las tarjetas midan igual que la fila de arriba;
+                # las dos de la derecha se quedan vacías a propósito.
+                vc1, vc2, _vc3, _vc4 = st.columns(4)
                 _kpi(vc1, "VaR 95% (diario)", f"{var95_sim*100:.2f}%", "#dc2626")
                 _kpi(vc2, "VaR 99% (diario)", f"{var99_sim*100:.2f}%", "#dc2626")
                 st.caption(
