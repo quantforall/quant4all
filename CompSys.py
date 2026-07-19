@@ -1339,33 +1339,32 @@ with tab_simulator:
     if not sim_series_keys:
         st.info("Añade al menos un **ticker** o **sistema** en la barra lateral para usar el simulador.")
     else:
-        # ---- Construir retornos mensuales de cada serie ----
+        # ---- Construir retornos diarios de cada serie ----
         @st.cache_data(show_spinner=False)
-        def get_monthly_returns(series_key: str, start, end) -> pd.Series:
+        def get_daily_returns(series_key: str, start, end) -> pd.Series:
             if series_key in dict_system_rets:
-                daily = dict_system_rets[series_key].loc[start:end]
-                m = daily.resample("ME").apply(lambda x: (1 + x).prod() - 1)
+                d = dict_system_rets[series_key].loc[start:end]
             else:
                 close = dict_closes[series_key].loc[start:end]
-                m = close.resample("ME").last().pct_change()
-            m.name = series_key
-            return m.dropna()
+                d = daily_returns_from_close(close)
+            d.name = series_key
+            return d.dropna()
 
-        monthly_series = {}
+        daily_series = {}
         for key in sim_series_keys:
-            ms = get_monthly_returns(key, current_start, current_end)
-            if not ms.empty:
-                monthly_series[key] = ms
+            ds = get_daily_returns(key, current_start, current_end)
+            if not ds.empty:
+                daily_series[key] = ds
 
-        if not monthly_series:
+        if not daily_series:
             st.info("No hay datos en el rango seleccionado para simular.")
         else:
             # Alinear todas las series al índice común
-            df_monthly = pd.concat(monthly_series.values(), axis=1).dropna()
-            df_monthly.columns = list(monthly_series.keys())
+            df_daily = pd.concat(daily_series.values(), axis=1).dropna()
+            df_daily.columns = list(daily_series.keys())
 
-            n_series = len(df_monthly.columns)
-            series_list = list(df_monthly.columns)
+            n_series = len(df_daily.columns)
+            series_list = list(df_daily.columns)
 
             # ---- Controles: pesos + rebalanceo + cash ----
             st.markdown("<div class='section-header'>⚖️ Pesos de la cartera</div>", unsafe_allow_html=True)
@@ -1444,24 +1443,33 @@ with tab_simulator:
             if total_w != 100:
                 st.warning("Ajusta los pesos para que sumen exactamente 100%.")
             else:
-                # ---- Simulación ----
+                # ---- Simulación (diaria) ----
                 weights = {k: v / 100.0 for k, v in raw_weights.items()}
                 w_cash = w_cash_pct / 100.0
-                cash_rate_m = (1 + cash_rate_annual / 100) ** (1 / 12) - 1
+                cash_rate_d = (1 + cash_rate_annual / 100) ** (1 / 252) - 1
+
+                # Fechas de rebalanceo: último día hábil de cada N meses.
+                # El usuario sigue eligiendo la frecuencia en meses; el motor corre en diario.
+                rebal_dates = set()
+                if rebal_months > 0:
+                    month_ends = df_daily.groupby(df_daily.index.to_period("M")).apply(
+                        lambda g: g.index[-1]
+                    )
+                    rebal_dates = set(month_ends.iloc[rebal_months - 1::rebal_months])
 
                 current_w = {k: weights[k] for k in series_list}
                 current_w_cash = w_cash
 
                 equity = float(initial_capital)
                 equity_curve = [equity]
-                monthly_rets_port = []
-                dates_sim = [df_monthly.index[0] - pd.DateOffset(months=1)]
+                daily_rets_port = []
+                dates_sim = [df_daily.index[0] - pd.tseries.offsets.BDay(1)]
 
-                for i, (dt, row) in enumerate(df_monthly.iterrows()):
-                    r_port = sum(current_w[k] * row[k] for k in series_list) + current_w_cash * cash_rate_m
+                for dt, row in df_daily.iterrows():
+                    r_port = sum(current_w[k] * row[k] for k in series_list) + current_w_cash * cash_rate_d
                     equity *= (1 + r_port)
                     equity_curve.append(equity)
-                    monthly_rets_port.append(r_port)
+                    daily_rets_port.append(r_port)
                     dates_sim.append(dt)
 
                     # 1) Derivar pesos según la rentabilidad de cada componente
@@ -1470,19 +1478,23 @@ with tab_simulator:
                     if abs(factor) > 1e-9:
                         for k in series_list:
                             current_w[k] *= (1 + row[k]) / factor
-                        current_w_cash *= (1 + cash_rate_m) / factor
+                        current_w_cash *= (1 + cash_rate_d) / factor
 
                     # 2) Resetear a pesos objetivo en los puntos de rebalanceo
                     #    (rebal_months == 0 → nunca resetea → buy & hold puro)
-                    if rebal_months > 0 and (i + 1) % rebal_months == 0:
+                    if dt in rebal_dates:
                         current_w = {k: weights[k] for k in series_list}
                         current_w_cash = w_cash
 
-                # Métricas
-                n_years = len(monthly_rets_port) / 12
+                # ---- Series de la cartera ----
+                ret_sim = pd.Series(daily_rets_port, index=df_daily.index, name="ret")
+                eq_sim = pd.Series(equity_curve[1:], index=df_daily.index, name="equity")
+
+                # Métricas (convenciones del resto de la app: CAGR calendario, vol √252 ddof=1)
+                n_years = (df_daily.index[-1] - df_daily.index[0]).days / 365.25
                 total_ret = equity / float(initial_capital)
                 cagr_sim = total_ret ** (1 / n_years) - 1 if n_years > 0 else np.nan
-                vol_sim = float(np.std(monthly_rets_port) * np.sqrt(12)) if monthly_rets_port else np.nan
+                vol_sim = float(ret_sim.std(ddof=1) * np.sqrt(252)) if len(ret_sim) > 1 else np.nan
                 sharpe_sim = cagr_sim / vol_sim if vol_sim and vol_sim > 0 else np.nan
 
                 cum = np.array(equity_curve)
@@ -1490,9 +1502,16 @@ with tab_simulator:
                 dd_curve_sim = (cum - roll_max) / roll_max * 100
                 max_dd_sim = float(dd_curve_sim.min())
 
+                # VaR histórico diario: percentil empírico de los retornos de la cartera.
+                # Sin supuesto de normalidad, así que recoge las colas reales de la serie.
+                var95_sim = float(np.percentile(ret_sim, 5)) if len(ret_sim) > 1 else np.nan
+                var99_sim = float(np.percentile(ret_sim, 1)) if len(ret_sim) > 1 else np.nan
+
+                # Retornos mensuales de la cartera (agregación para la tabla y la vista mensual)
+                monthly_rets_sim = ret_sim.resample("ME").apply(lambda x: (1 + x).prod() - 1)
+
                 # Rentabilidades anuales
-                df_eq_sim = pd.DataFrame({"equity": equity_curve[1:]}, index=df_monthly.index)
-                annual_sim = df_eq_sim["equity"].resample("YE").last().pct_change().dropna()
+                annual_sim = eq_sim.resample("YE").last().pct_change().dropna()
                 annual_sim.index = annual_sim.index.year
 
                 # ---- KPI cards ----
@@ -1500,11 +1519,11 @@ with tab_simulator:
                 st.markdown("<div class='section-header'>📊 Resultados</div>", unsafe_allow_html=True)
 
                 # Periodo realmente simulado (intersección común de todas las series)
-                sim_ini = df_monthly.index[0]
-                sim_fin = df_monthly.index[-1]
+                sim_ini = df_daily.index[0]
+                sim_fin = df_daily.index[-1]
                 st.caption(
-                    f"📅 Periodo común simulado: **{sim_ini:%b %Y} → {sim_fin:%b %Y}** "
-                    f"({len(df_monthly)} meses · {n_series} activo(s)). "
+                    f"📅 Periodo común simulado: **{sim_ini:%d %b %Y} → {sim_fin:%d %b %Y}** "
+                    f"({len(df_daily)} sesiones · {n_series} activo(s)). "
                     f"Si una serie empieza más tarde, la simulación se recorta al solape de todas."
                 )
 
@@ -1521,6 +1540,16 @@ with tab_simulator:
                 _kpi(kc2, "Volatilidad", f"{vol_sim*100:.2f}%")
                 _kpi(kc3, "Sharpe", f"{sharpe_sim:.2f}", "#16a34a" if sharpe_sim > 1 else "#d97706" if sharpe_sim > 0 else "#dc2626")
                 _kpi(kc4, "Max Drawdown", f"{max_dd_sim:.2f}%", "#dc2626")
+
+                # ---- VaR (segunda fila, dos tarjetas) ----
+                st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
+                vc1, vc2 = st.columns(2)
+                _kpi(vc1, "VaR 95% (diario)", f"{var95_sim*100:.2f}%", "#dc2626")
+                _kpi(vc2, "VaR 99% (diario)", f"{var99_sim*100:.2f}%", "#dc2626")
+                st.caption(
+                    "VaR histórico sobre los retornos diarios de la cartera simulada: pérdida diaria "
+                    "que solo se supera el 5% / 1% de las sesiones del periodo seleccionado."
+                )
 
                 st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
@@ -1586,7 +1615,7 @@ with tab_simulator:
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
                 st.markdown("<div class='section-header'>📅 Monthly Returns — Cartera</div>", unsafe_allow_html=True)
 
-                df_mport = pd.DataFrame({"ret": [r * 100 for r in monthly_rets_port]}, index=df_monthly.index)
+                df_mport = pd.DataFrame({"ret": monthly_rets_sim * 100.0}, index=monthly_rets_sim.index)
                 df_mport["Year"] = df_mport.index.year
                 df_mport["Month"] = df_mport.index.month
                 pivot_p = df_mport.pivot(index="Year", columns="Month", values="ret").sort_index()
