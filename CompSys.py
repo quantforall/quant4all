@@ -4,6 +4,7 @@ import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime, time, date
+from zoneinfo import ZoneInfo
 import base64
 import os
 
@@ -34,76 +35,201 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+/* ── Tokens (marca Quant4all) ── */
+:root {
+    --q-navy: #0A1428;
+    --q-navy-2: #14264A;
+    --q-orange: #F7931E;
+    --q-orange-text: #B45309;      /* naranja legible sobre blanco (4.8:1) */
+    --q-orange-soft: #FFF4E6;
+    --q-bg: #F5F7FB;
+    --q-surface: #FFFFFF;
+    --q-surface-2: #F8FAFC;
+    --q-border: #E2E8F0;
+    --q-border-soft: #EEF2F7;
+    --q-text: #0F172A;
+    --q-text-2: #334155;
+    --q-muted: #64748B;            /* 4.7:1 sobre blanco */
+    --q-pos: #15803D;
+    --q-pos-soft: #DCFCE7;
+    --q-neg: #B91C1C;
+    --q-neg-soft: #FEE2E2;
+    --q-radius: 14px;
+    --q-radius-sm: 10px;
+    --q-shadow-1: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+    --q-shadow-2: 0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
+}
+
 /* ── Base ── */
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+.stApp { background: var(--q-bg); }
+[data-testid="stHeader"] { background: rgba(245,247,251,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 .block-container {
-    padding-top: 3.5rem !important;
+    padding-top: 2.5rem !important;
     padding-bottom: 2rem !important;
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
     max-width: 1400px;
 }
 
+:focus-visible { outline: 2px solid var(--q-orange) !important; outline-offset: 2px; }
+
+/* ── Hero ── */
+.hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, var(--q-navy) 0%, var(--q-navy-2) 100%);
+    border-radius: 18px;
+    padding: 1.6rem 2rem 1.5rem 2rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--q-shadow-2);
+}
+.hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(90deg, transparent 35%, #000 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 35%, #000 100%);
+    pointer-events: none;
+}
+.hero-eyebrow {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--q-orange); margin-bottom: 0.45rem;
+}
+.hero-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+.hero-sub { color: var(--q-orange); }
+.hero-desc { color: #CBD5E1; font-size: 0.95rem; margin-top: 0.45rem; max-width: 62ch; line-height: 1.5; }
+
+/* ── Tabs: control segmentado ── */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    gap: 4px;
+    background: #E9EEF5;
+    padding: 4px;
+    border-radius: 12px;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    height: auto;
+    padding: 0.5rem 1rem;
+    border-radius: 9px;
+    color: var(--q-text-2);
+    font-weight: 600;
+    background: transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] p { font-size: 0.9rem; font-weight: 600; }
+[data-testid="stTabs"] [data-baseweb="tab"]:hover { color: var(--q-navy); background: rgba(255,255,255,0.6); }
+[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+    background: var(--q-surface);
+    color: var(--q-navy);
+    box-shadow: var(--q-shadow-1);
+}
+[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] [data-testid="stIconMaterial"] { color: var(--q-orange); }
+[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+[data-testid="stTabs"] [data-baseweb="tab-border"] { display: none; }
+
 /* ── Section headers ── */
 .section-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 1.25rem;
+    gap: 0.6rem;
+    font-size: 1.15rem;
     font-weight: 700;
-    color: #111827;
-    margin: 2rem 0 1rem 0;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #f3f4f6;
+    color: var(--q-text);
+    letter-spacing: -0.01em;
+    margin: 1.75rem 0 0.9rem 0;
+}
+.section-header .sh-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--q-orange-soft); color: var(--q-orange-text);
+    flex-shrink: 0;
+}
+.section-header::after {
+    content: ""; flex: 1; height: 1px; background: var(--q-border); margin-left: 0.4rem;
 }
 
 /* ── Divider ── */
 .q-divider {
     border: none;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--q-border);
     margin: 1rem 0;
+}
+
+/* ── Contenedores con borde de Streamlit (st.container(border=True)) ── */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: var(--q-surface);
+    border-color: var(--q-border) !important;
+    border-radius: var(--q-radius) !important;
+    box-shadow: var(--q-shadow-1);
 }
 
 /* ── KPI Cards ── */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 1rem;
     margin-bottom: 1rem;
 }
 .kpi-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
+    position: relative;
+    background: var(--q-surface);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-radius);
     padding: 1rem 1.25rem;
     text-align: center;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    transition: box-shadow 0.2s;
+    box-shadow: var(--q-shadow-1);
+    transition: box-shadow 0.2s ease;
+    overflow: hidden;
 }
-.kpi-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+.kpi-card::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, var(--q-orange), #FDBA74);
+}
+.kpi-card:hover { box-shadow: var(--q-shadow-2); }
 .kpi-card .kpi-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #9ca3af;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--q-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.3rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.35rem;
 }
 .kpi-card .kpi-value {
     font-size: 1.75rem;
     font-weight: 800;
-    line-height: 1;
-    color: #111827;
+    line-height: 1.1;
+    color: var(--q-text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+.kpi-card .kpi-foot { font-size: 0.75rem; color: var(--q-muted); margin-top: 0.4rem; }
+.kpi-card .kpi-foot.live { color: var(--q-pos); font-weight: 600; }
+.live-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--q-pos); margin-right: 5px; vertical-align: 1px;
+    box-shadow: 0 0 0 3px rgba(21,128,61,0.18);
 }
 
-/* ── Summary / Top-Worst tables ── */
+/* ── Tables ── */
 .table-wrap {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
+    background: var(--q-surface);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-radius);
     overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    box-shadow: var(--q-shadow-1);
     align-self: flex-start;
     width: 100%;
 }
@@ -112,42 +238,45 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     border-collapse: collapse;
     table-layout: fixed;
     font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
 }
 .table-common thead th {
-    background: #f9fafb;
-    padding: 6px 4px;
+    background: var(--q-surface-2);
+    padding: 8px 4px;
     font-size: 0.68rem;
     font-weight: 700;
-    color: #6b7280;
+    color: var(--q-muted);
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
     text-align: center;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--q-border);
     white-space: nowrap;
 }
 .table-common tbody td {
     padding: 6px 4px;
     text-align: center;
     vertical-align: middle;
-    border-bottom: 1px solid #f3f4f6;
-    font-size: 0.78rem;
+    border-bottom: 1px solid var(--q-border-soft);
+    font-size: 0.8rem;
+    color: var(--q-text-2);
     white-space: nowrap;
 }
-.table-common tbody tr { height: 54px; }
+.table-common tbody tr { height: 54px; transition: background-color 0.15s ease; }
 .table-common tbody tr:last-child td { border-bottom: none; }
-.table-common tbody tr:hover td { background: #f9fafb; }
+.table-common tbody tr:hover td { background: #FBFCFE; }
 
 /* Numbers inside cells */
 .num {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #111827;
+    color: var(--q-text);
     white-space: nowrap;
     display: inline-block;
+    font-variant-numeric: tabular-nums;
 }
 .tw-date {
-    font-size: 0.62rem;
-    color: #9ca3af;
+    font-size: 0.64rem;
+    color: var(--q-muted);
     display: block;
     margin-top: 1px;
     white-space: nowrap;
@@ -155,46 +284,89 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 /* Column widths — summary */
 .summary-table { table-layout: auto; }
-.summary-table th:first-child, .summary-table td:first-child { text-align: left; padding-left: 10px; }
+.summary-table th:first-child, .summary-table td:first-child { text-align: left; padding-left: 14px; }
 
 /* Column widths — top/worst */
 .tw-tabular { table-layout: auto; }
-.tw-tabular th:first-child, .tw-tabular td:first-child { text-align: left; padding-left: 10px; }
+.tw-tabular th:first-child, .tw-tabular td:first-child { text-align: left; padding-left: 14px; }
 
-/* Table title pill */
+/* Table title */
 .table-title {
-    font-size: 0.80rem;
+    display: flex; align-items: center; gap: 0.45rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    color: #374151;
-    padding: 8px 12px 7px 12px;
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-    letter-spacing: 0.01em;
+    color: var(--q-text);
+    padding: 10px 14px 9px 14px;
+    background: var(--q-surface);
+    border-bottom: 1px solid var(--q-border);
 }
+.table-title svg { color: var(--q-orange-text); }
+
+/* ── Position sizing ── */
+.sizing-table { table-layout: auto; min-width: 640px; }
+.sizing-table th, .sizing-table td { padding-left: 12px !important; padding-right: 12px !important; }
+.sizing-table th:first-child, .sizing-table td:first-child { text-align: left; padding-left: 18px !important; }
+.sizing-table tbody tr { height: 58px; }
+.sys-name { font-weight: 700; color: var(--q-text); font-size: 0.9rem; }
+.chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 0.76rem; font-weight: 600; line-height: 1.4;
+    white-space: nowrap;
+}
+.chip-market { background: #EEF2F7; color: var(--q-text-2); font-weight: 700; letter-spacing: 0.03em; }
+.chip-long { background: var(--q-pos-soft); color: var(--q-pos); }
+.chip-short { background: var(--q-neg-soft); color: var(--q-neg); }
+.chip-micro { background: var(--q-orange-soft); color: var(--q-orange-text); border: 1px solid #FED7AA; }
+.chip-nano { background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; }
+.chip-shares { background: #FEF9C3; color: #854D0E; border: 1px solid #FDE68A; }
+.chip-off { background: #F1F5F9; color: var(--q-muted); }
+.chip b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.pos-cell { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.sizing-foot {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    margin-top: 0.85rem; padding: 0.75rem 1rem;
+    background: var(--q-surface); border: 1px solid var(--q-border);
+    border-radius: var(--q-radius-sm); color: var(--q-text-2); font-size: 0.85rem;
+}
+.sizing-foot b { color: var(--q-text); font-variant-numeric: tabular-nums; }
 
 /* ── Chart card wrapper ── */
 .chart-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
+    background: var(--q-surface);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-radius);
     padding: 0.5rem 0.75rem 0.25rem 0.75rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    box-shadow: var(--q-shadow-1);
     margin-bottom: 0.25rem;
+}
+[data-testid="stPlotlyChart"] {
+    background: var(--q-surface);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-radius);
+    padding: 0.4rem 0.6rem;
+    box-shadow: var(--q-shadow-1);
 }
 
 /* ── Monthly heat table ── */
 .monthly-heat-wrap { width: 88%; margin: 0 auto; }
 .monthly-heat {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
     table-layout: fixed;
     font-size: 0.88rem;
+    border: 1px solid var(--q-border);
     border-radius: 12px;
     overflow: hidden;
     font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-1);
 }
 .monthly-heat th, .monthly-heat td {
-    border: 1px solid #e5e7eb;
+    border-right: 1px solid var(--q-border-soft);
+    border-bottom: 1px solid var(--q-border-soft);
     padding: 6px 4px;
     text-align: center;
     vertical-align: middle;
@@ -203,47 +375,58 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     text-overflow: ellipsis;
 }
 .monthly-heat thead th {
-    background: #f3f4f6;
+    background: var(--q-surface-2);
     font-weight: 700;
-    font-size: 0.78rem;
-    color: #6b7280;
+    font-size: 0.74rem;
+    color: var(--q-muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
 }
-.monthly-heat tfoot td { background: #f9fafb; font-weight: 700; }
-.monthly-heat td.year-col, .monthly-heat th.year-col { width: 7%; font-weight: 700; color: #374151; }
+.monthly-heat tfoot td { background: var(--q-surface-2); font-weight: 700; }
+.monthly-heat td.year-col, .monthly-heat th.year-col { width: 7%; font-weight: 700; color: var(--q-text-2); }
 .monthly-heat th.mon-col, .monthly-heat td.mon-col { width: 6.5%; }
 .monthly-heat th.ytd-col, .monthly-heat td.ytd-col { width: 7.5%; font-weight: 800; }
-.monthly-heat .cell { color: #111827; font-weight: 600; font-size: 0.82rem; }
-.monthly-heat .na { color: #9ca3af; font-weight: 500; }
+.monthly-heat .cell { color: var(--q-text); font-weight: 600; font-size: 0.82rem; }
+.monthly-heat .na { color: #94A3B8; font-weight: 500; }
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
     min-width: 18rem;
-    background: #0D0D0D;
+    background: linear-gradient(180deg, var(--q-navy) 0%, #0D1A33 100%);
+    border-right: 1px solid rgba(255,255,255,0.06);
 }
-[data-testid="stSidebar"] .stMarkdown p { font-size: 0.85rem; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; }
-[data-testid="stSidebar"] label { color: #d1d5db !important; }
-[data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #d1d5db !important; }
-/* "Use benchmark": solo texto blanco (sin tocar fondo del checkbox) */
+[data-testid="stSidebar"] .stMarkdown p {
+    font-size: 0.72rem; font-weight: 700; color: #94A3B8;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+}
+[data-testid="stSidebar"] label { color: #CBD5E1 !important; }
+[data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] .stTextInput label { color: #CBD5E1 !important; }
 [data-testid="stSidebar"] [data-testid="stCheckbox"] label > div:last-child,
-[data-testid="stSidebar"] [data-testid="stCheckbox"] label p { color: #ffffff !important; }
-[data-testid="stSidebar"] hr { border-color: #374151; }
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label p {
+    color: #E2E8F0 !important; text-transform: none; letter-spacing: 0; font-size: 0.85rem; font-weight: 500;
+}
+[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.10); }
+[data-testid="stSidebar"] [data-baseweb="input"],
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    border-radius: 8px !important;
+}
+[data-testid="stSidebar"] [data-testid="stSliderTickBarMin"],
+[data-testid="stSidebar"] [data-testid="stSliderTickBarMax"] { color: #CBD5E1; }
 
 /* ── Stats card ── */
 .stats-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
+    background: var(--q-surface);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-radius);
     padding: 1rem 1.25rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    box-shadow: var(--q-shadow-1);
     text-align: center;
     margin-top: 0.5rem;
 }
 .stats-card .stats-title {
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--q-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 0.75rem;
@@ -252,73 +435,85 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid #f3f4f6;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--q-border-soft);
     font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
 }
 .stats-row:last-child { border-bottom: none; }
-.stats-row .stat-label { color: #6b7280; }
-.stats-row .stat-val { font-weight: 700; color: #111827; }
+.stats-row .stat-label { color: var(--q-muted); }
+.stats-row .stat-val { font-weight: 700; color: var(--q-text); }
 
 /* ── Threshold counter cards ── */
 .count-card {
-    border-radius: 14px;
+    border-radius: var(--q-radius);
     padding: 1rem 0.5rem;
     text-align: center;
     margin-top: 0.5rem;
+    font-variant-numeric: tabular-nums;
 }
 .count-card .count-label { font-size: 0.82rem; font-weight: 700; margin-bottom: 4px; }
 .count-card .count-val { font-size: 2.8rem; font-weight: 800; line-height: 1; }
-.count-card.positive { background: #dcfce7; border: 1px solid #86efac; }
-.count-card.positive .count-label { color: #16a34a; }
-.count-card.positive .count-val { color: #15803d; }
-.count-card.negative { background: #fff3e0; border: 1px solid #fdba74; }
-.count-card.negative .count-label { color: #FE880C; }
-.count-card.negative .count-val { color: #c45f00; }
-
-/* ── Hero ── */
-.hero-title {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1.2;
-    margin-bottom: 0.25rem;
-}
-.hero-sub { color: #FE880C; }
+.count-card.positive { background: var(--q-pos-soft); border: 1px solid #86efac; }
+.count-card.positive .count-label { color: var(--q-pos); }
+.count-card.positive .count-val { color: #166534; }
+.count-card.negative { background: var(--q-orange-soft); border: 1px solid #FDBA74; }
+.count-card.negative .count-label { color: var(--q-orange-text); }
+.count-card.negative .count-val { color: #9A3412; }
 
 /* ── Radio / controls pill ── */
 div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
 
 /* ── Newsletter button ── */
 .newsletter-btn {
-    display: inline-block;
-    background: linear-gradient(135deg, #FE880C, #e06b00);
-    color: #ffffff !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: var(--q-orange);
+    color: var(--q-navy) !important;
     text-decoration: none !important;
-    padding: 0.55rem 1.4rem;
+    padding: 0.6rem 1.4rem;
     border-radius: 999px;
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    transition: all 0.2s;
-    box-shadow: 0 3px 8px rgba(254,136,12,0.40);
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 4px 14px rgba(247,147,30,0.35);
 }
 .newsletter-btn:hover {
-    box-shadow: 0 6px 16px rgba(254,136,12,0.55);
-    transform: translateY(-2px);
+    background: #FFA53D;
+    box-shadow: 0 6px 20px rgba(247,147,30,0.5);
+    transform: translateY(-1px);
 }
 
 /* ── Sidebar logo ── */
 .sidebar-logo { text-align: center; margin-bottom: 1.2rem; }
-.sidebar-logo img { width: 72px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.sidebar-logo img { width: 72px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+.sidebar-brand {
+    text-align: center; color: #FFFFFF; font-weight: 800; font-size: 1.15rem;
+    letter-spacing: -0.01em; margin: 0.25rem 0 1rem 0;
+}
+.sidebar-brand span { color: var(--q-orange); }
+.sidebar-brand small {
+    display: block; color: #94A3B8; font-size: 0.68rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase; margin-top: 2px;
+}
 
 /* ── Quitar líneas negras del number_input ── */
 [data-testid="stNumberInput"] > div { border-top: none !important; border-bottom: none !important; }
 [data-testid="stNumberInput"] input { border-top: none !important; border-bottom: none !important; }
 
+/* Captions */
+[data-testid="stCaptionContainer"] { color: var(--q-muted); }
+
 /* hide default streamlit header/footer noise */
 #MainMenu, footer { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+}
 
 /* ===================================================== */
 /* ============== RESPONSIVE / MÓVIL ==================== */
@@ -344,8 +539,14 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
     }
 
     /* Hero y títulos más pequeños */
-    .hero-title { font-size: 1.4rem; }
-    .section-header { font-size: 1.05rem; margin: 1.25rem 0 0.75rem 0; }
+    .hero { padding: 1.2rem 1.25rem; border-radius: 14px; }
+    .hero-title { font-size: 1.45rem; }
+    .hero-desc { font-size: 0.85rem; }
+    .section-header { font-size: 1.02rem; margin: 1.25rem 0 0.75rem 0; }
+
+    /* Tabs: ocupan todo el ancho y hacen scroll */
+    [data-testid="stTabs"] [data-baseweb="tab-list"] { width: 100%; }
+    [data-testid="stTabs"] [data-baseweb="tab"] { padding: 0.45rem 0.7rem; }
 
     /* KPI cards: número algo menor */
     .kpi-card .kpi-value { font-size: 1.45rem; }
@@ -367,13 +568,46 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
 
 /* Pantallas muy pequeñas (teléfonos estrechos) */
 @media (max-width: 480px) {
-    .hero-title { font-size: 1.2rem; }
+    .hero-title { font-size: 1.25rem; }
     .num { font-size: 0.78rem; }
     .table-common tbody td { font-size: 0.74rem; }
     .kpi-card .kpi-value { font-size: 1.25rem; }
 }
 </style>
 """, unsafe_allow_html=True)
+
+
+# -----------------------
+# Iconos (Lucide, SVG en línea)
+# -----------------------
+_ICON_PATHS = {
+    "award": '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>',
+    "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+    "trending-down": '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+    "bar-chart": '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+    "calendar": '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+    "target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    "pie-chart": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+    "grid": '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    "calculator": '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M16 14v4"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>',
+    "arrow-up-right": '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
+    "arrow-down-right": '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>',
+    "layers": '<path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+    "mail": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+}
+
+
+def icon(name: str, size: int = 18, stroke: float = 2) -> str:
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" '
+            f'fill="none" stroke="currentColor" stroke-width="{stroke}" stroke-linecap="round" '
+            f'stroke-linejoin="round" aria-hidden="true">{_ICON_PATHS[name]}</svg>')
+
+
+def section_header(title: str, icon_name: str) -> None:
+    st.markdown(
+        f"<div class='section-header'><span class='sh-icon'>{icon(icon_name)}</span>{title}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # -----------------------
@@ -387,10 +621,11 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("""
+    st.markdown(f"""
+    <div class='sidebar-brand'>Quant<span>4</span>all<small>Systematic Trading</small></div>
     <div style='text-align:center; margin-bottom:1.5rem;'>
-        <a href='https://quant4all.substack.com/' target='_blank' class='newsletter-btn'>
-            ✉ SUBSCRIBE FREE
+        <a href='https://quant4all.substack.com/' target='_blank' rel='noopener' class='newsletter-btn'>
+            {icon("mail", 16, 2.2)} Subscribe free
         </a>
     </div>
     """, unsafe_allow_html=True)
@@ -509,9 +744,12 @@ def load_system_returns(system_name: str) -> pd.Series:
     path = SYSTEM_FILES.get(system_name)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"No se encontró el fichero para {system_name}: {path or '—'}")
+    # Con ";" explícito: el autodetector confunde la coma decimal ("-0,85") con el separador
+    with open(path, encoding="utf-8-sig") as f:
+        first_line = f.readline()
     raw = pd.read_csv(
-        path, header=None, engine="python", sep=None,
-        comment="#", skip_blank_lines=True, dtype=str,
+        path, header=None, engine="python", sep=";" if ";" in first_line else None,
+        encoding="utf-8-sig", comment="#", skip_blank_lines=True, dtype=str,
         na_values=["", "NA", "NaN", "nan", None],
     )
     if raw.shape[1] < 2:
@@ -543,15 +781,16 @@ def load_system_returns(system_name: str) -> pd.Series:
 # Plotting helpers
 # -----------------------
 PLOTLY_LAYOUT = dict(
-    font=dict(family="Inter, sans-serif", size=13, color="#374151"),
+    font=dict(family="Inter, sans-serif", size=13, color="#334155"),
+    hoverlabel=dict(bgcolor="#0A1428", bordercolor="#0A1428", font=dict(color="white", family="Inter, sans-serif")),
     paper_bgcolor="white",
     plot_bgcolor="white",
     margin=dict(l=0, r=0, t=40, b=10),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     xaxis=dict(showgrid=False, zeroline=False, showline=True,
-               linecolor="#e5e7eb", tickfont=dict(size=11)),
-    yaxis=dict(showgrid=True, gridcolor="#f3f4f6", zeroline=False,
-               showline=False, tickfont=dict(size=11), side="right"),
+               linecolor="#E2E8F0", tickfont=dict(size=11, color="#64748B")),
+    yaxis=dict(showgrid=True, gridcolor="#EEF2F7", zeroline=False,
+               showline=False, tickfont=dict(size=11, color="#64748B"), side="right"),
 )
 
 
@@ -623,7 +862,7 @@ def plot_dd(dict_equities, df_bench=None, bench_label=None, show_bench=True, ser
 
 
 def render_summary_table(rows):
-    html = ['<div class="table-wrap"><div class="table-title">🎯 Key Metrics</div>']
+    html = [f'<div class="table-wrap"><div class="table-title">{icon("target", 16)} Key Metrics</div>']
     html.append('<table class="table-common summary-table"><thead><tr>')
     for h in ["Asset", "Return", "CAGR", "Max DD", "Vol"]:
         html.append(f"<th>{h}</th>")
@@ -647,8 +886,8 @@ def render_summary_table(rows):
     return "\n".join(html)
 
 
-def render_top_table(title: str, icon: str, table_dict: dict, series_color: dict):
-    html = [f'<div class="table-wrap"><div class="table-title">{icon} {title}</div>']
+def render_top_table(title: str, icon_name: str, table_dict: dict, series_color: dict):
+    html = [f'<div class="table-wrap"><div class="table-title">{icon(icon_name, 16)} {title}</div>']
     html.append('<table class="table-common tw-tabular"><thead><tr>')
     html.append("<th>Asset</th>")
     for k in range(1, 6):
@@ -958,8 +1197,11 @@ for t in tickers:
 
 # ---- Hero (outside tabs) ----
 st.markdown("""
-<div class='hero-title'>
-  Let's compare &nbsp;<span class='hero-sub'>by Quant4all</span>
+<div class='hero'>
+  <div class='hero-eyebrow'>Quant4all · Systematic Trading</div>
+  <div class='hero-title'>Let's compare <span class='hero-sub'>by Quant4all</span></div>
+  <div class='hero-desc'>Compara sistemas y activos, simula carteras y calcula el tamaño de posición
+  de los sistemas de corto plazo.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1034,9 +1276,108 @@ def bg_color(v: float) -> str:
 
 
 # =============================================
+# Position sizing — sistemas de corto plazo (réplica del CBT de AmiBroker)
+# =============================================
+NANO_PV = 0.5          # $ por punto de 1 e-nano (1/10 de un e-micro de 5 $/punto)
+NANOS_PER_MICRO = 10
+
+# Mismo orden y parámetros que "ZZ - MultiStategies - Futures - Nano Compound.afl".
+#   tipo 1: Max(1, Min(floor(vol), round(lev)))
+#   tipo 2: Max(round(vol), floor(lev)); 0 = no opera
+#   tipo 3: floor(lev); 0 = no opera
+#   tipo 4: Max(1, round(lev))
+#   tipo 5: GLD (acciones) = floor(% equity / precio), % = Max(60, Min(100, 150 / Carver))
+# con vol = VolPct % equity / riesgo $ de 1 contrato  y  lev = LevSys x equity / nocional de 1 contrato
+SHORT_TERM_SYSTEMS = [
+    dict(name="RSI2",        market="SPX", side="Largo", tipo=1, vol_pct=2.0, risk="carver", lev=lambda L: L),
+    dict(name="BoW",         market="SPX", side="Largo", tipo=4, vol_pct=0.0, risk=None,     lev=lambda L: L),
+    dict(name="EoM",         market="SPX", side="Largo", tipo=1, vol_pct=2.0, risk="carver", lev=lambda L: L),
+    dict(name="7DL",         market="SPX", side="Largo", tipo=1, vol_pct=2.0, risk="atr10",  lev=lambda L: L),
+    dict(name="Oversold",    market="RUT", side="Largo", tipo=1, vol_pct=2.0, risk="carver", lev=lambda L: L),
+    dict(name="BlackMonday", market="RUT", side="Corto", tipo=3, vol_pct=0.0, risk=None,     lev=lambda L: max(2.0, L + 0.5)),
+    dict(name="ADST",        market="RUT", side="Corto", tipo=2, vol_pct=1.2, risk="carver", lev=lambda L: min(1.0, L - 0.5)),
+    dict(name="GLD",         market="GLD", side="Largo", tipo=5, vol_pct=0.0, risk="carver", lev=lambda L: 0.0),
+]
+SIZING_TICKERS = {"SPX": "^GSPC", "RUT": "^RUT", "GLD": "GLD"}
+MICRO_SYMBOL = {"SPX": "MES", "RUT": "M2K"}
+NANO_SYMBOL = {"SPX": "NES", "RUT": "N2K"}
+
+
+def ami_round(x: float) -> int:
+    """round() de AmiBroker: los .5 se redondean hacia arriba (Python usa redondeo bancario)."""
+    return int(np.floor(x + 0.5))
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def download_ohlc_sizing(ticker: str, as_of: date) -> pd.DataFrame:
+    """OHLC diario hasta as_of (incluido). Para hoy, la vela en curso trae el último precio disponible."""
+    start = pd.Timestamp(as_of) - pd.DateOffset(years=4)
+    end = pd.Timestamp(as_of) + pd.Timedelta(days=1)          # yfinance: end no incluido
+    df = yf.download(ticker, start=start, end=end, interval="1d", auto_adjust=False, progress=False)
+    if df.empty:
+        return pd.DataFrame()
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df = df[["Open", "High", "Low", "Close"]].dropna()
+    df.index = pd.to_datetime(df.index).tz_localize(None)
+    return df[df.index <= pd.Timestamp(as_of)]
+
+
+def sizing_market_stats(df: pd.DataFrame) -> dict:
+    """Cierre, Carver (sqrt(EMA(dif^2, 36))) y ATR(10) de Wilder del último día de la serie."""
+    c, h, l = df["Close"], df["High"], df["Low"]
+    carver = np.sqrt((c.diff() ** 2).ewm(span=36, adjust=False).mean())
+    prev_c = c.shift(1)
+    tr = pd.concat([h - l, (h - prev_c).abs(), (l - prev_c).abs()], axis=1).max(axis=1)
+    atr10 = tr.ewm(alpha=1 / 10, adjust=False).mean()
+    return {
+        "date": df.index[-1],
+        "close": float(c.iloc[-1]),
+        "carver": float(carver.iloc[-1]),
+        "atr10": float(atr10.iloc[-1]),
+    }
+
+
+def size_short_term_system(sys_cfg: dict, stats: dict, equity: float, leverage: float) -> dict:
+    """Nº de e-nanos (o acciones de GLD) que daría el CBT para una entrada con esta equity."""
+    tipo = sys_cfg["tipo"]
+    price = stats["close"]
+
+    if tipo == 5:
+        pct = max(60.0, min(100.0, 150.0 / stats["carver"]))
+        n = int(np.floor(0.01 * pct * equity / price))
+        return {"n": n, "notional": n * price, "pct": pct}
+
+    notional_1 = price * NANO_PV
+    levc = sys_cfg["lev"](leverage) * equity / notional_1
+    volc = 0.0
+    if sys_cfg["vol_pct"] > 0:
+        volc = 0.01 * sys_cfg["vol_pct"] * equity / (stats[sys_cfg["risk"]] * NANO_PV)
+
+    if tipo == 1:
+        n = max(1, min(int(np.floor(volc)), ami_round(levc)))
+    elif tipo == 2:
+        n = max(ami_round(volc), int(np.floor(levc)))
+    elif tipo == 3:
+        n = int(np.floor(levc))
+    else:
+        n = max(1, ami_round(levc))
+
+    n = max(n, 0)
+    return {"n": n, "notional": n * notional_1}
+
+
+def split_micro_nano(n: int) -> tuple:
+    return n // NANOS_PER_MICRO, n % NANOS_PER_MICRO
+
+
+# =============================================
 # TABS
 # =============================================
-tab_compare, tab_simulator = st.tabs(["📊 Comparador", "💼 Simulador de Cartera"])
+tab_compare, tab_simulator, tab_sizing = st.tabs(
+    [":material/insights: Comparador", ":material/account_balance_wallet: Simulador de Cartera",
+     ":material/calculate: Calculadora de Posición"]
+)
 
 
 # =============================================
@@ -1045,7 +1386,7 @@ tab_compare, tab_simulator = st.tabs(["📊 Comparador", "💼 Simulador de Cart
 with tab_compare:
 
     # Section 1 — Performance Summary
-    st.markdown("<div class='section-header'>🏆 Performance Summary</div>", unsafe_allow_html=True)
+    section_header("Performance Summary", "award")
 
     c1, c2, c3 = st.columns([0.30, 0.35, 0.35], gap="small")
     with c1:
@@ -1054,16 +1395,16 @@ with tab_compare:
         else:
             st.info("Sin datos en el rango seleccionado.")
     with c2:
-        st.markdown(render_top_table("Top Daily Returns", "🚀", top_dict, SERIES_COLOR), unsafe_allow_html=True)
+        st.markdown(render_top_table("Top Daily Returns", "trending-up", top_dict, SERIES_COLOR), unsafe_allow_html=True)
     with c3:
-        st.markdown(render_top_table("Worst Daily Returns", "🔥", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
+        st.markdown(render_top_table("Worst Daily Returns", "trending-down", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
 
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
     # Section 2 — Equity & Drawdown
     c_title, c_ctrl = st.columns([0.75, 0.25])
     with c_title:
-        st.markdown("<div class='section-header'>📈 Equity & Drawdown</div>", unsafe_allow_html=True)
+        section_header("Equity & Drawdown", "trending-up")
     with c_ctrl:
         st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
         col_u, col_s = st.columns(2)
@@ -1101,7 +1442,7 @@ with tab_compare:
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
     # Section 3 — Distribution of Daily Returns
-    st.markdown("<div class='section-header'>📊 Distribution of Daily Returns</div>", unsafe_allow_html=True)
+    section_header("Distribution of Daily Returns", "bar-chart")
 
     labels_all = (
         [t.upper() for t in tickers if t.upper() in daily_map]
@@ -1220,7 +1561,7 @@ with tab_compare:
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
     # Section 5 — Distribution of Monthly Returns
-    st.markdown("<div class='section-header'>📅 Distribution of Monthly Returns</div>", unsafe_allow_html=True)
+    section_header("Distribution of Monthly Returns", "calendar")
 
     st.markdown("""
     <style>
@@ -1367,7 +1708,7 @@ with tab_simulator:
             series_list = list(df_daily.columns)
 
             # ---- Controles: pesos + rebalanceo + cash ----
-            st.markdown("<div class='section-header'>⚖️ Pesos de la cartera</div>", unsafe_allow_html=True)
+            section_header("Pesos de la cartera", "pie-chart")
 
             # Pesos por defecto: distribución equitativa entre series (sin cash), suma = 100
             base_w = 100 // n_series
@@ -1516,7 +1857,7 @@ with tab_simulator:
 
                 # ---- KPI cards ----
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-                st.markdown("<div class='section-header'>📊 Resultados</div>", unsafe_allow_html=True)
+                section_header("Resultados", "bar-chart")
 
                 # Periodo realmente simulado (intersección común de todas las series)
                 sim_ini = df_daily.index[0]
@@ -1556,7 +1897,7 @@ with tab_simulator:
                 st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
                 # ---- Gráficos ----
-                sim_tab1, sim_tab2, sim_tab3 = st.tabs(["📈 Equity", "📉 Drawdown", "📅 Rentabilidad anual"])
+                sim_tab1, sim_tab2, sim_tab3 = st.tabs([":material/show_chart: Equity", ":material/trending_down: Drawdown", ":material/calendar_month: Rentabilidad anual"])
 
                 with sim_tab1:
                     fig_eq = go.Figure()
@@ -1598,7 +1939,7 @@ with tab_simulator:
 
                 # ---- Correlation Matrix ----
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-                st.markdown("<div class='section-header'>🪢 Correlation Matrix</div>", unsafe_allow_html=True)
+                section_header("Correlation Matrix", "grid")
                 if len(daily_map) >= 2:
                     ddf = pd.concat(list(daily_map.values()), axis=1)
                     ddf.columns = list(daily_map.keys())
@@ -1615,7 +1956,7 @@ with tab_simulator:
 
                 # ---- Tabla mensual de la cartera ----
                 st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
-                st.markdown("<div class='section-header'>📅 Monthly Returns — Cartera</div>", unsafe_allow_html=True)
+                section_header("Monthly Returns — Cartera", "calendar")
 
                 df_mport = pd.DataFrame({"ret": monthly_rets_sim * 100.0}, index=monthly_rets_sim.index)
                 df_mport["Year"] = df_mport.index.year
@@ -1672,3 +2013,133 @@ with tab_simulator:
                     "El cash se remunera al tipo anual configurado. "
                     "Resultados pasados no garantizan rentabilidades futuras."
                 )
+
+
+# =============================================
+# TAB 3 — Calculadora de Posición (sistemas de corto plazo)
+# =============================================
+with tab_sizing:
+
+    section_header("Tamaño de posición — Sistemas de corto plazo", "calculator")
+
+    today_ny = datetime.now(ZoneInfo("America/New_York")).date()
+
+    sz_controls = st.container(border=True)
+    c_cap, c_lev, c_date = sz_controls.columns([0.30, 0.40, 0.30], gap="large")
+    with c_cap:
+        sz_capital = st.number_input(
+            "Capital ($)", min_value=1000, value=10000, step=1000, key="sz_capital",
+        )
+    with c_lev:
+        sz_leverage = st.select_slider(
+            "Apalancamiento",
+            options=[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
+            value=1.25,
+            key="sz_leverage",
+            help="Para RSI2, BoW, EoM, 7DL y Oversold se usa tal cual. "
+                 "ADST usa Min(1, apalanc. − 0,5) y BlackMonday Max(2, apalanc. + 0,5).",
+        )
+    with c_date:
+        sz_date = st.date_input(
+            "Fecha", value=today_ny, min_value=date(2006, 1, 1), max_value=today_ny,
+            format="DD/MM/YYYY", key="sz_date",
+            help="Cierre de esa fecha (o de la última sesión anterior si fue festivo). "
+                 "Para hoy se usa el último valor disponible.",
+        )
+
+    with st.spinner("Descargando precios…"):
+        sz_stats, sz_errors = {}, []
+        for mkt, yticker in SIZING_TICKERS.items():
+            try:
+                df_mkt = download_ohlc_sizing(yticker, sz_date)
+            except Exception:
+                df_mkt = pd.DataFrame()
+            if len(df_mkt) < 60:
+                sz_errors.append(f"No hay datos suficientes de {yticker} para esa fecha.")
+            else:
+                sz_stats[mkt] = sizing_market_stats(df_mkt)
+
+    for msg in sz_errors:
+        st.warning(msg)
+
+    if sz_stats:
+        # ---- KPIs: precios usados ----
+        now_ny = datetime.now(ZoneInfo("America/New_York"))
+        session_open = now_ny.time() < time(16, 15)
+        mkt_labels = {"SPX": "S&P 500", "RUT": "Russell 2000", "GLD": "GLD"}
+        kpi_html = ["<div class='kpi-grid'>"]
+        for mkt, label in mkt_labels.items():
+            if mkt in sz_stats:
+                s = sz_stats[mkt]
+                if s["date"].date() == today_ny and session_open:
+                    foot = (f"<div class='kpi-foot live'><span class='live-dot'></span>"
+                            f"Último · {now_ny:%d/%m/%Y %H:%M} NY</div>")
+                else:
+                    foot = f"<div class='kpi-foot'>Cierre · {s['date']:%d/%m/%Y}</div>"
+                kpi_html.append(
+                    f"<div class='kpi-card'><div class='kpi-label'>{label}</div>"
+                    f"<div class='kpi-value'>{s['close']:,.2f}</div>{foot}</div>"
+                )
+        kpi_html.append("</div>")
+        st.markdown("".join(kpi_html), unsafe_allow_html=True)
+
+        # ---- Tabla de tamaños ----
+        rows_html = []
+        total_notional = 0.0
+        for cfg in SHORT_TERM_SYSTEMS:
+            stats = sz_stats.get(cfg["market"])
+            if stats is None:
+                continue
+            r = size_short_term_system(cfg, stats, float(sz_capital), float(sz_leverage))
+            n = r["n"]
+            total_notional += r["notional"]
+            if cfg["side"] == "Largo":
+                side_chip = f"<span class='chip chip-long'>{icon('arrow-up-right', 14, 2.5)}Largo</span>"
+            else:
+                side_chip = f"<span class='chip chip-short'>{icon('arrow-down-right', 14, 2.5)}Corto</span>"
+
+            if n == 0:
+                chips = ["<span class='chip chip-off'>No opera</span>"]
+            elif cfg["tipo"] == 5:
+                chips = [f"<span class='chip chip-shares'><b>{r['pct']:.0f} %</b> - <b>{n:,}</b> acciones GLD</span>"]
+            else:
+                micros, nanos = split_micro_nano(n)
+                chips = []
+                if micros:
+                    chips.append(f"<span class='chip chip-micro'><b>{micros}</b> e-micro "
+                                 f"{MICRO_SYMBOL[cfg['market']]}</span>")
+                if nanos:
+                    chips.append(f"<span class='chip chip-nano'><b>{nanos}</b> e-nano "
+                                 f"{NANO_SYMBOL[cfg['market']]}</span>")
+            position = "<div class='pos-cell'>" + "".join(chips) + "</div>"
+
+            rows_html.append(
+                "<tr>"
+                f"<td><span class='sys-name'>{cfg['name']}</span></td>"
+                f"<td><span class='chip chip-market'>{cfg['market']}</span></td>"
+                f"<td>{side_chip}</td>"
+                f"<td>{position}</td>"
+                f"<td><span class='num'>{r['notional']:,.0f} $</span></td>"
+                f"<td><span class='num'>{r['notional'] / sz_capital:.2f}x</span></td>"
+                "</tr>"
+            )
+
+        table_html = (
+            "<div class='table-wrap' style='overflow-x:auto'><table class='table-common sizing-table'><thead><tr>"
+            "<th>Sistema</th><th>Mercado</th><th>Dirección</th><th>Comprar / vender</th>"
+            "<th>Nocional</th><th>Apalanc. efectivo</th>"
+            "</tr></thead><tbody>" + "".join(rows_html) + "</tbody></table></div>"
+        )
+        st.markdown(table_html, unsafe_allow_html=True)
+
+        st.markdown(
+            f"<div class='sizing-foot'>{icon('layers', 16)}<span>Si los {len(rows_html)} sistemas estuvieran "
+            f"en posición a la vez, el nocional bruto sería <b>{total_notional:,.0f} $</b> "
+            f"(<b>{total_notional / sz_capital:.2f}x</b> el capital).</span></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+        st.caption(
+            "Herramienta informativa: no constituye recomendación de inversión. "
+            "Verifica el tamaño con tu bróker antes de operar."
+        )
