@@ -702,7 +702,7 @@ def section_header(title: str, icon_name: str) -> None:
 # Estado inicial desde la URL (enlaces compartibles)
 # -----------------------
 SYSTEM_CHOICES = ["", "ROCStar", "All Stars", "TAA", "ST x1", "ST x1.25"]
-DEFAULT_SYSTEMS = ["All Stars", "ROCStar", "TAA", "ST x1.25", "ST x1"]
+DEFAULT_SYSTEMS = ["All Stars", "ROCStar", "TAA", "ST x1.25", ""]
 
 
 def _read_url_state() -> dict:
