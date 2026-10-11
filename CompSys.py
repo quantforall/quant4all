@@ -1985,7 +1985,7 @@ def render_comparador():
         with col_u:
             unit_choice = st.radio("Unidad", options=["$", "%"], index=0, horizontal=True, label_visibility="collapsed")
         with col_s:
-            scale_choice = st.radio("Escala", options=["Lin", "Log"], index=0, horizontal=True, label_visibility="collapsed")
+            scale_choice = st.radio("Escala", options=["Lin", "Log"], index=1, horizontal=True, label_visibility="collapsed")
 
     st.plotly_chart(
         plot_equity(eq_map, ordered_labels, SERIES_COLOR, bench_key=bench_key, unit=unit_choice, scale=scale_choice),
