@@ -658,9 +658,9 @@ with st.sidebar:
 
     with col_systems:
         st.markdown("**Quant4all Systems**")
-        system_choices = ["", "ROCStar", "All Stars", "TAA"]
+        system_choices = ["", "ROCStar", "All Stars", "TAA", "Short-term x1", "Short-term x1.25"]
         systems = []
-        default_selection = ["All Stars", "ROCStar", "", ""]
+        default_selection = ["All Stars", "ROCStar", "TAA", "Short-term x1.25"]
         for i in range(4):
             choice = st.selectbox(
                 f"sys{i}",
@@ -736,6 +736,8 @@ SYSTEM_FILES = {
     "All Stars": "data/AllStars.csv",
     "Big Three": "data/BigThree.csv",
     "TAA":       "data/TAA.csv",
+    "Short-term x1":    "data/Short-term_x1.csv",
+    "Short-term x1.25": "data/Short-term_x1.25.csv",
 }
 
 
