@@ -647,7 +647,7 @@ with st.sidebar:
     with col_assets:
         st.markdown("**Tickers (Yahoo)**")
         tickers = []
-        for i in range(4):
+        for i in range(5):
             v = st.text_input(
                 "", value="", placeholder=f"Ticker {i+1}", label_visibility="collapsed"
             )
@@ -658,10 +658,10 @@ with st.sidebar:
 
     with col_systems:
         st.markdown("**Quant4all Systems**")
-        system_choices = ["", "ROCStar", "All Stars", "TAA", "Short-term x1", "Short-term x1.25"]
+        system_choices = ["", "ROCStar", "All Stars", "TAA", "ST x1", "ST x1.25"]
         systems = []
-        default_selection = ["All Stars", "ROCStar", "TAA", "Short-term x1.25"]
-        for i in range(4):
+        default_selection = ["All Stars", "ROCStar", "TAA", "ST x1.25", ""]
+        for i in range(5):
             choice = st.selectbox(
                 f"sys{i}",
                 system_choices,
@@ -670,12 +670,14 @@ with st.sidebar:
             )
             if choice:
                 systems.append(choice)
+        st.caption("ST = sistemas Short-term (corto plazo) · x1 / x1.25 = apalancamiento")
 
 
 # -----------------------
 # Helpers
 # -----------------------
-PALETTE = ["#6366f1", "#e11d48", "#0891b2", "#d97706", "#16a34a", "#8b5cf6"]
+PALETTE = ["#6366f1", "#e11d48", "#0891b2", "#d97706", "#16a34a", "#8b5cf6",
+           "#be185d", "#65a30d", "#78350f", "#0f766e"]
 BENCH_COLOR = "#9ca3af"
 
 
@@ -736,8 +738,8 @@ SYSTEM_FILES = {
     "All Stars": "data/AllStars.csv",
     "Big Three": "data/BigThree.csv",
     "TAA":       "data/TAA.csv",
-    "Short-term x1":    "data/Short-term_x1.csv",
-    "Short-term x1.25": "data/Short-term_x1.25.csv",
+    "ST x1":    "data/Short-term_x1.csv",
+    "ST x1.25": "data/Short-term_x1.25.csv",
 }
 
 
