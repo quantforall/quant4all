@@ -1323,8 +1323,8 @@ SHORT_TERM_SYSTEMS = [
     dict(name="EoM",         market="SPX", side="Largo", tipo=1, vol_pct=2.0, risk="carver", lev=lambda L: L),
     dict(name="7DL",         market="SPX", side="Largo", tipo=1, vol_pct=2.0, risk="atr10",  lev=lambda L: L),
     dict(name="Oversold",    market="RUT", side="Largo", tipo=1, vol_pct=2.0, risk="carver", lev=lambda L: L),
-    dict(name="BlackMonday", market="RUT", side="Corto", tipo=3, vol_pct=0.0, risk=None,     lev=lambda L: max(2.0, L + 0.5)),
-    dict(name="ADST",        market="RUT", side="Corto", tipo=2, vol_pct=1.2, risk="carver", lev=lambda L: min(1.0, L - 0.5)),
+    dict(name="BlackMonday", market="RUT", side="Corto", tipo=3, vol_pct=0.0, risk=None,     lev=lambda L: max(2.0, L + 0.25)),
+    dict(name="ADST",        market="RUT", side="Corto", tipo=2, vol_pct=1.2, risk="carver", lev=lambda L: min(1.0, L - 0.25)),
     dict(name="GLD",         market="GLD", side="Largo", tipo=5, vol_pct=0.0, risk="carver", lev=lambda L: 0.0),
 ]
 SIZING_TICKERS = {"SPX": "^GSPC", "RUT": "^RUT", "GLD": "GLD"}
@@ -2070,7 +2070,7 @@ with tab_sizing:
             value=1.25,
             key="sz_leverage",
             help="Para RSI2, BoW, EoM, 7DL y Oversold se usa tal cual. "
-                 "ADST usa Min(1, apalanc. − 0,5) y BlackMonday Max(2, apalanc. + 0,5).",
+                 "ADST usa Min(1, apalanc. − 0,25) y BlackMonday Max(2, apalanc. + 0,25).",
         )
     with c_date:
         sz_date = st.date_input(
