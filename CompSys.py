@@ -814,11 +814,11 @@ PLOTLY_LAYOUT = dict(
     hoverlabel=dict(bgcolor="#0A1428", bordercolor="#0A1428", font=dict(color="white", family="Inter, sans-serif")),
     paper_bgcolor="white",
     plot_bgcolor="white",
-    margin=dict(l=0, r=0, t=40, b=10),
+    margin=dict(l=8, r=8, t=40, b=8),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    xaxis=dict(showgrid=False, zeroline=False, showline=True,
+    xaxis=dict(showgrid=False, zeroline=False, showline=True, automargin=True,
                linecolor="#E2E8F0", tickfont=dict(size=11, color="#64748B")),
-    yaxis=dict(showgrid=True, gridcolor="#EEF2F7", zeroline=False,
+    yaxis=dict(showgrid=True, gridcolor="#EEF2F7", zeroline=False, automargin=True,
                showline=False, tickfont=dict(size=11, color="#64748B"), side="right"),
 )
 
