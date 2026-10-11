@@ -290,6 +290,31 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .tw-tabular { table-layout: auto; }
 .tw-tabular th:first-child, .tw-tabular td:first-child { text-align: left; padding-left: 14px; }
 
+/* Aire en el borde derecho para que los números no toquen el marco */
+.summary-table th:last-child, .summary-table td:last-child,
+.tw-tabular th:last-child, .tw-tabular td:last-child { padding-right: 12px; }
+
+/* Menos separación entre las tres tablas del Performance Summary → más ancho útil */
+[data-testid="stHorizontalBlock"]:has(.tw-tabular) { gap: 0.5rem !important; }
+
+/* La letra de estas tablas se ajusta al ancho de la tarjeta (con 10 series no caben a tamaño fijo) */
+.table-wrap:has(.summary-table), .table-wrap:has(.tw-tabular) { container-type: inline-size; }
+.summary-table .num, .tw-tabular .num { font-size: clamp(0.66rem, 2.75cqi, 0.82rem); }
+.summary-table td, .tw-tabular td:first-child { font-size: clamp(0.68rem, 2.75cqi, 0.8rem); }
+.tw-tabular .tw-date { font-size: clamp(0.56rem, 2.15cqi, 0.64rem); }
+
+/* Si las tres tablas no caben en una fila: Key Metrics arriba a todo el ancho, Top/Worst debajo */
+.st-key-perf_summary { container-type: inline-size; }
+@container (max-width: 1068px) {
+    .st-key-perf_summary [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; row-gap: 0.75rem !important; }
+    .st-key-perf_summary [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; }
+    .st-key-perf_summary [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child { flex: 1 1 100% !important; }
+}
+@container (max-width: 760px) {
+    .st-key-perf_summary [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { flex: 1 1 100% !important; }
+}
+.summary-table td, .summary-table th, .tw-tabular td, .tw-tabular th { padding-left: 3px; padding-right: 3px; }
+
 /* Table title */
 .table-title {
     display: flex; align-items: center; gap: 0.45rem;
@@ -660,7 +685,7 @@ with st.sidebar:
         st.markdown("**Quant4all Systems**")
         system_choices = ["", "ROCStar", "All Stars", "TAA", "ST x1", "ST x1.25"]
         systems = []
-        default_selection = ["All Stars", "ROCStar", "TAA", "ST x1.25", ""]
+        default_selection = ["All Stars", "ROCStar", "TAA", "ST x1.25", "ST x1"]
         for i in range(5):
             choice = st.selectbox(
                 f"sys{i}",
@@ -1392,7 +1417,8 @@ with tab_compare:
     # Section 1 — Performance Summary
     section_header("Performance Summary", "award")
 
-    c1, c2, c3 = st.columns([0.30, 0.35, 0.35], gap="small")
+    perf_box = st.container(key="perf_summary")
+    c1, c2, c3 = perf_box.columns([0.30, 0.35, 0.35], gap="small")
     with c1:
         if summary_rows:
             st.markdown(render_summary_table(summary_rows), unsafe_allow_html=True)
@@ -1727,11 +1753,14 @@ with tab_simulator:
 
             raw_weights = {}
             w_cash_pct = 0
-            cols_per_row = 4  # máximo de sliders por fila
+            # Máximo 4 sliders por fila, repartidos de forma equilibrada (6 → 3+3).
+            # Todas las filas usan el mismo nº de columnas para que los sliders midan lo mismo.
+            n_rows = -(-len(slider_items) // 4)
+            cols_per_row = -(-len(slider_items) // n_rows)
 
             for row_start in range(0, len(slider_items), cols_per_row):
                 row_items = slider_items[row_start:row_start + cols_per_row]
-                cols = st.columns(len(row_items))
+                cols = st.columns(cols_per_row)
                 for col, (key, color) in zip(cols, row_items):
                     with col:
                         st.markdown(
