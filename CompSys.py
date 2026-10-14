@@ -1325,15 +1325,17 @@ def render_relative_table(rows, bench_label: str) -> str:
     return "".join(html)
 
 
-def render_drawdowns_table(eps: pd.DataFrame, k: int = 5) -> str:
+def render_drawdowns_table(eps: pd.DataFrame, k: int = 5, sort_by: str = "depth") -> str:
+    """Los k drawdowns más profundos (sort_by="depth") o más largos (sort_by="days", incluye el abierto)."""
     heads = ["#", tx("Inicio", "Start"), tx("Valle", "Trough"), tx("Recuperación", "Recovery"), tx("Profundidad", "Depth"),
              tx("Días de caída", "Days to trough"), tx("Días de recuperación", "Days to recover"), tx("Duración total", "Total length")]
-    html = [f'<div class="table-wrap"><div class="table-title">{icon("trending-down", 16)} {tx(f"Los {k} peores drawdowns", f"The {k} worst drawdowns")}</div>',
+    html = [f'<div class="table-wrap"><div class="table-title">{icon("trending-down", 16)} {tx(f"Los {k} drawdowns más largos", f"The {k} longest drawdowns") if sort_by == "days" else tx(f"Los {k} peores drawdowns", f"The {k} worst drawdowns")}</div>',
             '<div class="table-scroll"><table class="table-common metrics-table narrow">'
             + _colgroup(len(heads), 6) + '<thead><tr>']
     html += [f"<th>{h}</th>" for h in heads]
     html.append("</tr></thead><tbody>")
-    for i, ep in enumerate(eps.nsmallest(k, "depth").itertuples(), start=1):
+    top = eps.nlargest(k, "days") if sort_by == "days" else eps.nsmallest(k, "depth")
+    for i, ep in enumerate(top.itertuples(), start=1):
         ongoing = pd.isna(ep.end)
         tr = f"<tr><td><span class='num'>{i}</span></td>"
         tr += f"<td>{ep.start:%d/%m/%Y}</td><td>{ep.trough:%d/%m/%Y}</td>"
@@ -2005,15 +2007,31 @@ def render_comparador():
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
     section_header(tx("Peores drawdowns", "Worst drawdowns"), "trending-down")
     dd_label = series_picker("Serie (drawdowns)", ordered_labels)
-    eps = drawdown_episodes(eq_map[dd_label]["dd"])
-    if eps.empty:
-        st.info(tx("Esta serie no tiene drawdowns en el periodo seleccionado.", "This series has no drawdowns in the selected period."))
+    dc1, dc2 = st.columns(2)
+    with dc1:
+        dd_sort_names = {"depth": tx("Más profundos", "Deepest"), "days": tx("Más largos", "Longest")}
+        dd_sort = series_picker("Orden (drawdowns)", list(dd_sort_names), format_func=dd_sort_names.get)
+    with dc2:
+        dd_scope_names = {"range": tx("Periodo seleccionado", "Selected period"),
+                          "full": tx("Histórico completo", "Full history")}
+        dd_scope = series_picker("Periodo (drawdowns)", list(dd_scope_names), format_func=dd_scope_names.get)
+    if dd_scope == "full":
+        # Toda la historia de la serie, sin recortar al rango común de fechas
+        dd_series = compute_equity_and_dd_from_returns(full_daily[dd_label], float(initial_capital))["dd"]
     else:
-        st.markdown(render_drawdowns_table(eps), unsafe_allow_html=True)
-        st.caption(tx("Inicio = máximo previo · Valle = punto más bajo · Recuperación = primer día en que se "
-                      "supera el máximo previo. Duraciones en días naturales.",
-                      "Start = previous peak · Trough = lowest point · Recovery = first day above the previous "
-                      "peak. Lengths in calendar days."))
+        dd_series = eq_map[dd_label]["dd"]
+    eps = drawdown_episodes(dd_series)
+    if eps.empty:
+        st.info(tx("Esta serie no tiene drawdowns en el periodo elegido.", "This series has no drawdowns in the chosen period."))
+    else:
+        st.markdown(render_drawdowns_table(eps, sort_by=dd_sort), unsafe_allow_html=True)
+        span = f"{dd_series.index[0]:%d/%m/%Y} → {dd_series.index[-1]:%d/%m/%Y}"
+        st.caption(tx(f"Datos: {span}. Inicio = máximo previo · Valle = punto más bajo · Recuperación = primer día "
+                      "en que se supera el máximo previo. Duraciones en días naturales; un drawdown aún abierto "
+                      "se cuenta hasta el último dato (marcado con +).",
+                      f"Data: {span}. Start = previous peak · Trough = lowest point · Recovery = first day above "
+                      "the previous peak. Lengths in calendar days; an open drawdown is counted up to the last "
+                      "data point (marked with +)."))
 
     # Section 4 — Frente al benchmark
     rel_labels = [l for l in ordered_labels if l != bench_key and l in daily_map]
