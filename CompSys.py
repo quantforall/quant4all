@@ -218,6 +218,13 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .kpi-card .kpi-foot { font-size: 0.75rem; color: var(--q-muted); margin-top: 0.4rem; }
 .kpi-grid.kpi-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 820px) { .kpi-grid.kpi-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 5 columnas (Simulador: 10 tarjetas en 2 filas): tarjetas más estrechas y cifra algo menor */
+.kpi-grid.kpi-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.75rem; }
+.kpi-grid.kpi-5 .kpi-card { padding: 0.85rem 0.6rem; }
+.kpi-grid.kpi-5 .kpi-value { font-size: 1.5rem; }
+.kpi-grid.kpi-5 .kpi-label { font-size: 0.68rem; letter-spacing: 0.04em; }
+@media (max-width: 1100px) { .kpi-grid.kpi-5 .kpi-value { font-size: 1.3rem; } }
+@media (max-width: 820px) { .kpi-grid.kpi-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi-card .kpi-foot.live { color: var(--q-pos); font-weight: 600; }
 .live-dot {
     display: inline-block; width: 7px; height: 7px; border-radius: 50%;
@@ -2484,6 +2491,8 @@ def render_simulador():
     # VaR / CVaR históricos diarios: sin supuesto de normalidad, recogen las colas reales
     var95 = float(np.percentile(ret_sim, 5)) if len(ret_sim) > 1 else np.nan
     cvar95 = float(ret_sim[ret_sim <= var95].mean()) if len(ret_sim) > 1 else np.nan
+    var99 = float(np.percentile(ret_sim, 1)) if len(ret_sim) > 1 else np.nan
+    cvar99 = float(ret_sim[ret_sim <= var99].mean()) if len(ret_sim) > 1 else np.nan
 
     # ---- KPI cards ----
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
@@ -2500,25 +2509,28 @@ def render_simulador():
     )
 
     st.markdown(
-        "<div class='kpi-grid kpi-4'>"
+        "<div class='kpi-grid kpi-5'>"
+        # Fila 1: rentabilidad y ratios · Fila 2: riesgo
         + _kpi_html("CAGR", f"{m['cagr'] * 100:.2f}%", _sign_color(m["cagr"]))
         + _kpi_html(tx("Volatilidad", "Volatility"), f"{m['vol'] * 100:.2f}%")
         + _kpi_html("Sharpe", *_ratio_fmt(m["sharpe"]))
         + _kpi_html("Sortino", *_ratio_fmt(m["sortino"]))
-        + _kpi_html("Max Drawdown", f"{m['max_dd'] * 100:.2f}%", NEG_COLOR)
         + _kpi_html("Calmar", *_ratio_fmt(m["calmar"]))
+        + _kpi_html("Max Drawdown", f"{m['max_dd'] * 100:.2f}%", NEG_COLOR)
         + _kpi_html(tx("VaR 95% (diario)", "VaR 95% (daily)"), f"{var95 * 100:.2f}%", NEG_COLOR)
         + _kpi_html(tx("CVaR 95% (diario)", "CVaR 95% (daily)"), f"{cvar95 * 100:.2f}%", NEG_COLOR)
+        + _kpi_html(tx("VaR 99% (diario)", "VaR 99% (daily)"), f"{var99 * 100:.2f}%", NEG_COLOR)
+        + _kpi_html(tx("CVaR 99% (diario)", "CVaR 99% (daily)"), f"{cvar99 * 100:.2f}%", NEG_COLOR)
         + "</div>",
         unsafe_allow_html=True,
     )
     st.caption(
         tx(f"Cash remunerado con {rf_label}; Sharpe y Sortino lo descuentan como tipo libre de riesgo. "
-           "Calmar = CAGR / |Max DD|. VaR 95 % = pérdida diaria que solo se supera el 5 % de las sesiones; "
-           "CVaR 95 % = pérdida media en ese 5 % de peores sesiones.",
+           "Calmar = CAGR / |Max DD|. VaR 95 % / 99 % = pérdida diaria que solo se supera el 5 % / 1 % de las "
+           "sesiones; CVaR = pérdida media en ese 5 % / 1 % de peores sesiones.",
            f"Cash earns {rf_label}; Sharpe and Sortino use it as the risk-free rate. "
-           "Calmar = CAGR / |Max DD|. VaR 95% = daily loss exceeded in only 5% of sessions; "
-           "CVaR 95% = average loss in that worst 5% of sessions.")
+           "Calmar = CAGR / |Max DD|. VaR 95% / 99% = daily loss exceeded in only 5% / 1% of sessions; "
+           "CVaR = average loss in that worst 5% / 1% of sessions.")
     )
 
     # ---- Cartera frente a sus componentes y el benchmark (mismo periodo) ----
