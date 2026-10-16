@@ -198,6 +198,36 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
     background: linear-gradient(90deg, var(--q-orange), #FDBA74);
 }
+/* Ayuda "?" en las tarjetas: el texto aparece al pasar el ratón (o al tocar en móvil) */
+.kpi-card.has-help { overflow: visible; }
+.kpi-card.has-help::before { border-radius: var(--q-radius) var(--q-radius) 0 0; }
+.kpi-card.has-help:hover, .kpi-card.has-help:focus-within { z-index: 20; }
+.kpi-help {
+    position: absolute; top: 9px; right: 9px; width: 17px; height: 17px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; cursor: help;
+    font-size: 0.66rem; font-weight: 800; color: var(--q-muted); background: var(--q-surface-2);
+    border: 1px solid var(--q-border); line-height: 1; user-select: none;
+}
+.kpi-help:hover, .kpi-help:focus { color: #fff; background: var(--q-orange); border-color: var(--q-orange); outline: none; }
+.kpi-tip {
+    display: none; position: absolute; left: -6px; right: -6px; top: calc(100% + 6px); z-index: 30;
+    background: var(--q-navy); color: #E2E8F0; text-align: left; border-radius: var(--q-radius-sm);
+    padding: 0.65rem 0.8rem; font-size: 0.78rem; font-weight: 500; line-height: 1.45;
+    letter-spacing: 0; text-transform: none; box-shadow: var(--q-shadow-2); min-width: 200px;
+}
+.kpi-tip b { color: #FFFFFF; }
+.kpi-tip::before {
+    content: ""; position: absolute; top: -6px; right: 18px; border: 6px solid transparent;
+    border-top: 0; border-bottom-color: var(--q-navy);
+}
+.kpi-help:hover + .kpi-tip, .kpi-help:focus + .kpi-tip { display: block; }
+@media (max-width: 820px) {
+    /* 2 columnas: en la columna derecha la ayuda crece hacia la izquierda para no salirse de la pantalla */
+    .kpi-grid.kpi-4 .kpi-card:nth-child(2n) .kpi-tip,
+    .kpi-grid.kpi-5 .kpi-card:nth-child(2n) .kpi-tip { left: auto; }
+    .kpi-grid.kpi-4 .kpi-card:nth-child(2n+1) .kpi-tip,
+    .kpi-grid.kpi-5 .kpi-card:nth-child(2n+1) .kpi-tip { right: auto; }
+}
 .kpi-card:hover { box-shadow: var(--q-shadow-2); }
 .kpi-card .kpi-label {
     font-size: 0.74rem;
@@ -2293,10 +2323,74 @@ def _apply_optimized(keys: list, weights: list, cash_key: str) -> None:
         st.session_state[k] = v
 
 
-def _kpi_html(label: str, value: str, color: str = "#111827", foot: str = "") -> str:
+def _kpi_html(label: str, value: str, color: str = "#111827", foot: str = "", tip: str = "") -> str:
     foot_html = f"<div class='kpi-foot'>{foot}</div>" if foot else ""
-    return (f"<div class='kpi-card'><div class='kpi-label'>{label}</div>"
+    help_html = (f"<span class='kpi-help' tabindex='0' aria-label='{tx('Ayuda', 'Help')}'>?</span>"
+                 f"<div class='kpi-tip' role='tooltip'>{tip}</div>") if tip else ""
+    return (f"<div class='kpi-card{' has-help' if tip else ''}'>{help_html}<div class='kpi-label'>{label}</div>"
             f"<div class='kpi-value' style='color:{color};'>{value}</div>{foot_html}</div>")
+
+
+def kpi_tips() -> dict:
+    """Qué significa cada métrica y cómo se interpreta (tooltip de las tarjetas), en el idioma activo."""
+    return {
+        "cagr": tx("<b>Crecimiento anual compuesto.</b> Lo que creció el capital cada año, de media, reinvirtiendo "
+                   "las ganancias. Más alto es mejor, pero compáralo siempre con el drawdown que costó conseguirlo.",
+                   "<b>Compound annual growth rate.</b> How much capital grew per year on average, reinvesting gains. "
+                   "Higher is better, but always weigh it against the drawdown it took to get there."),
+        "vol": tx("<b>Volatilidad anualizada</b> de los retornos diarios: cuánto oscila la cartera. Un 16 % indica "
+                  "que en un año normal es habitual moverse unos ±16 % alrededor de la media. Menos es más fácil de aguantar.",
+                  "<b>Annualised volatility</b> of daily returns: how much the portfolio swings. 16% means that in a "
+                  "normal year moves of about ±16% around the average are common. Lower is easier to live with."),
+        "sharpe": tx("<b>Rentabilidad por unidad de riesgo:</b> exceso sobre el cash dividido por la volatilidad. "
+                     "Por encima de 1 es bueno y de 2, excelente; por debajo de 0,5 apenas compensa el riesgo asumido.",
+                     "<b>Return per unit of risk:</b> excess return over cash divided by volatility. Above 1 is good "
+                     "and above 2 excellent; below 0.5 the risk is barely rewarded."),
+        "sortino": tx("<b>Como el Sharpe, pero solo penaliza las caídas</b>, no las subidas. Por encima de 2 es muy bueno. "
+                      "Si es bastante mayor que el Sharpe, la volatilidad viene sobre todo de días alcistas.",
+                      "<b>Like Sharpe, but only penalises downside moves</b>, not upside ones. Above 2 is very good. "
+                      "If it is well above Sharpe, volatility comes mostly from up days."),
+        "calmar": tx("<b>CAGR dividido entre el máximo drawdown:</b> cuánta rentabilidad anual obtienes por cada punto "
+                     "de caída máxima. Por encima de 1, en un año típico ganas más de lo que llegaste a perder en el peor momento.",
+                     "<b>CAGR divided by the maximum drawdown:</b> annual return earned per point of worst fall. Above 1, "
+                     "a typical year earns more than you lost at the worst moment."),
+        "maxdd": tx("<b>La mayor caída</b> desde un máximo hasta el mínimo posterior: el peor momento que habrías vivido. "
+                    "Pregúntate si lo aguantarías sin abandonar. Recuperar un −20 % exige subir un 25 %.",
+                    "<b>The largest fall</b> from a peak to the following low: the worst moment you would have lived "
+                    "through. Ask yourself whether you would stick with it. Recovering from −20% takes a +25% gain."),
+        "var95": tx("<b>Pérdida diaria que solo se supera el 5 % de las sesiones</b> (≈ 1 día al mes). Es el «día malo "
+                    "normal»: cuenta con verlo a menudo.",
+                    "<b>Daily loss exceeded in only 5% of sessions</b> (≈ 1 day a month). It is the «normal bad day»: "
+                    "expect to see it often."),
+        "cvar95": tx("<b>Pérdida media en el 5 % de peores sesiones:</b> cuánto pierdes de media en un día malo. "
+                     "Cuanto más lejos del VaR 95 %, más extremos son esos días.",
+                     "<b>Average loss over the worst 5% of sessions:</b> what you lose on average on a bad day. "
+                     "The further it is from VaR 95%, the more extreme those days are."),
+        "var99": tx("<b>Pérdida diaria que solo se supera el 1 % de las sesiones</b> (≈ 2–3 días al año). Es el susto "
+                    "fuerte que puede llegar un par de veces al año.",
+                    "<b>Daily loss exceeded in only 1% of sessions</b> (≈ 2–3 days a year). The big scare that may "
+                    "come a couple of times a year."),
+        "cvar99": tx("<b>Pérdida media en el 1 % de peores sesiones:</b> de cuánto es, de media, ese susto cuando llega. "
+                     "No es la peor pérdida posible. Si en euros te parece demasiado, reduce tamaño o apalancamiento.",
+                     "<b>Average loss over the worst 1% of sessions:</b> how big that scare is on average when it comes. "
+                     "It is not the worst possible loss. If it feels too large in money terms, cut size or leverage."),
+        "mc_cagr": tx("<b>Rentabilidad anual del escenario central</b> de los 1.000 simulados. Debajo, el rango en el que "
+                      "caen el 90 % de los escenarios: cuanto más ancho, más incertidumbre.",
+                      "<b>Annual return of the middle scenario</b> out of the 1,000 simulated. Below, the range covering "
+                      "90% of scenarios: the wider it is, the more uncertainty."),
+        "mc_dd": tx("<b>Caída máxima típica</b> que verías en el horizonte elegido. Debajo, la del 5 % de escenarios más "
+                    "desfavorables: prepárate mentalmente para esa cifra.",
+                    "<b>Typical maximum fall</b> you would see over the chosen horizon. Below, the one for the worst 5% "
+                    "of scenarios: be mentally ready for that figure."),
+        "mc_pdd": tx("<b>% de escenarios</b> en los que, en algún momento del horizonte, la cartera cae más que el umbral "
+                     "elegido. Mueve el umbral para ver qué caídas son probables y cuáles raras.",
+                     "<b>% of scenarios</b> in which, at some point within the horizon, the portfolio falls more than the "
+                     "chosen threshold. Move the threshold to see which falls are likely and which are rare."),
+        "mc_ploss": tx("<b>% de escenarios que terminan por debajo del capital inicial.</b> Suele bajar cuanto más largo "
+                       "es el horizonte: el tiempo juega a favor de un sistema con ventaja.",
+                       "<b>% of scenarios that end below the starting capital.</b> It usually falls as the horizon "
+                       "lengthens: time works in favour of a system with an edge."),
+    }
 
 
 def _ratio_fmt(v):
@@ -2492,6 +2586,7 @@ def render_simulador():
     var95 = float(np.percentile(ret_sim, 5)) if len(ret_sim) > 1 else np.nan
     cvar95 = float(ret_sim[ret_sim <= var95].mean()) if len(ret_sim) > 1 else np.nan
     var99 = float(np.percentile(ret_sim, 1)) if len(ret_sim) > 1 else np.nan
+    tips = kpi_tips()
     cvar99 = float(ret_sim[ret_sim <= var99].mean()) if len(ret_sim) > 1 else np.nan
 
     # ---- KPI cards ----
@@ -2511,16 +2606,16 @@ def render_simulador():
     st.markdown(
         "<div class='kpi-grid kpi-5'>"
         # Fila 1: rentabilidad y ratios · Fila 2: riesgo
-        + _kpi_html("CAGR", f"{m['cagr'] * 100:.2f}%", _sign_color(m["cagr"]))
-        + _kpi_html(tx("Volatilidad", "Volatility"), f"{m['vol'] * 100:.2f}%")
-        + _kpi_html("Sharpe", *_ratio_fmt(m["sharpe"]))
-        + _kpi_html("Sortino", *_ratio_fmt(m["sortino"]))
-        + _kpi_html("Calmar", *_ratio_fmt(m["calmar"]))
-        + _kpi_html("Max Drawdown", f"{m['max_dd'] * 100:.2f}%", NEG_COLOR)
-        + _kpi_html(tx("VaR 95% (diario)", "VaR 95% (daily)"), f"{var95 * 100:.2f}%", NEG_COLOR)
-        + _kpi_html(tx("CVaR 95% (diario)", "CVaR 95% (daily)"), f"{cvar95 * 100:.2f}%", NEG_COLOR)
-        + _kpi_html(tx("VaR 99% (diario)", "VaR 99% (daily)"), f"{var99 * 100:.2f}%", NEG_COLOR)
-        + _kpi_html(tx("CVaR 99% (diario)", "CVaR 99% (daily)"), f"{cvar99 * 100:.2f}%", NEG_COLOR)
+        + _kpi_html("CAGR", f"{m['cagr'] * 100:.2f}%", _sign_color(m["cagr"]), tip=tips["cagr"])
+        + _kpi_html(tx("Volatilidad", "Volatility"), f"{m['vol'] * 100:.2f}%", tip=tips["vol"])
+        + _kpi_html("Sharpe", *_ratio_fmt(m["sharpe"]), tip=tips["sharpe"])
+        + _kpi_html("Sortino", *_ratio_fmt(m["sortino"]), tip=tips["sortino"])
+        + _kpi_html("Calmar", *_ratio_fmt(m["calmar"]), tip=tips["calmar"])
+        + _kpi_html("Max Drawdown", f"{m['max_dd'] * 100:.2f}%", NEG_COLOR, tip=tips["maxdd"])
+        + _kpi_html(tx("VaR 95% (diario)", "VaR 95% (daily)"), f"{var95 * 100:.2f}%", NEG_COLOR, tip=tips["var95"])
+        + _kpi_html(tx("CVaR 95% (diario)", "CVaR 95% (daily)"), f"{cvar95 * 100:.2f}%", NEG_COLOR, tip=tips["cvar95"])
+        + _kpi_html(tx("VaR 99% (diario)", "VaR 99% (daily)"), f"{var99 * 100:.2f}%", NEG_COLOR, tip=tips["var99"])
+        + _kpi_html(tx("CVaR 99% (diario)", "CVaR 99% (daily)"), f"{cvar99 * 100:.2f}%", NEG_COLOR, tip=tips["cvar99"])
         + "</div>",
         unsafe_allow_html=True,
     )
@@ -2691,16 +2786,16 @@ def render_simulador():
             "<div class='kpi-grid kpi-4'>"
             + _kpi_html(tx("CAGR mediano", "Median CAGR"), f"{cagr_p[1] * 100:.1f}%", _sign_color(cagr_p[1]),
                         tx(f"90 % de escenarios: {cagr_p[0] * 100:.1f}% a {cagr_p[2] * 100:.1f}%",
-                           f"90% of scenarios: {cagr_p[0] * 100:.1f}% to {cagr_p[2] * 100:.1f}%"))
+                           f"90% of scenarios: {cagr_p[0] * 100:.1f}% to {cagr_p[2] * 100:.1f}%"), tip=tips["mc_cagr"])
             + _kpi_html(tx("Max DD mediano", "Median Max DD"), f"{dd_p[0] * 100:.1f}%", NEG_COLOR,
                         tx(f"5 % peores escenarios: {dd_p[1] * 100:.1f}% o más",
-                           f"Worst 5% of scenarios: {dd_p[1] * 100:.1f}% or more"))
+                           f"Worst 5% of scenarios: {dd_p[1] * 100:.1f}% or more"), tip=tips["mc_dd"])
             + _kpi_html(tx(f"Prob. de DD &gt; {dd_thr}%", f"Prob. of DD &gt; {dd_thr}%"), f"{p_dd * 100:.0f}%",
                         NEG_COLOR if p_dd >= 0.5 else (MID_COLOR if p_dd >= 0.2 else POS_COLOR),
-                        tx(f"en {h_label}", f"within {h_label}"))
+                        tx(f"en {h_label}", f"within {h_label}"), tip=tips["mc_pdd"])
             + _kpi_html(tx("Prob. de acabar en pérdidas", "Prob. of ending at a loss"), f"{p_loss * 100:.0f}%",
                         NEG_COLOR if p_loss >= 0.2 else (MID_COLOR if p_loss >= 0.05 else POS_COLOR),
-                        tx(f"al cabo de {h_label}", f"after {h_label}"))
+                        tx(f"al cabo de {h_label}", f"after {h_label}"), tip=tips["mc_ploss"])
             + "</div>",
             unsafe_allow_html=True,
         )
