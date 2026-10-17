@@ -2633,7 +2633,8 @@ def render_simulador():
     comp_eq = {k: compute_equity_and_dd_from_returns(df_daily[k], capital) for k in series_list}
     bench_eq = None
     if has_bench and bench_key in daily_map:
-        br = daily_map[bench_key].loc[sim_start:sim_end]
+        # Desde el cierre anterior al inicio: así el benchmark también tiene el retorno del primer día simulado
+        br = daily_returns_from_close(close_bench.loc[:sim_end]).loc[sim_start:sim_end]
         if not br.empty:
             bench_eq = compute_equity_and_dd_from_returns(br, capital)
 
@@ -2768,13 +2769,21 @@ def render_simulador():
                        + (tx(" Barras = cartera; puntos = componentes; marca gris = benchmark.",
                              " Bars = portfolio; dots = components; grey mark = benchmark.") if multi else ""))
 
-    sim_csv = pd.DataFrame({tx("Capital", "Equity"): df_sim["equity"],
-                            tx("Retorno diario %", "Daily return %"): ret_sim * 100,
-                            "Drawdown %": df_sim["dd"] * 100})
+    # Cartera y, si hay, benchmark en el mismo periodo y con el mismo capital inicial
+    def _csv_cols(label: str, dfe: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame({f"{label} · {tx('Capital', 'Equity')}": dfe["equity"],
+                             f"{label} · {tx('Retorno diario %', 'Daily return %')}": dfe["ret"] * 100,
+                             f"{label} · Drawdown %": dfe["dd"] * 100})
+
+    csv_parts = [_csv_cols(port_name, df_sim)]
+    if bench_eq is not None:
+        csv_parts.append(_csv_cols(bench_key, bench_eq))
+    sim_csv = pd.concat(csv_parts, axis=1).sort_index()   # días sin dato de una serie quedan en blanco
     sim_csv.index = sim_csv.index.strftime("%Y-%m-%d")
     sim_csv.index.name = tx("Fecha", "Date")
     st.download_button(
-        tx("Descargar la cartera simulada (CSV)", "Download the simulated portfolio (CSV)"), data=_to_csv(sim_csv),
+        (tx("Descargar cartera y benchmark (CSV)", "Download portfolio and benchmark (CSV)") if bench_eq is not None
+         else tx("Descargar la cartera simulada (CSV)", "Download the simulated portfolio (CSV)")), data=_to_csv(sim_csv),
         file_name=f"quant4all_{tx('cartera', 'portfolio')}_{sim_start:%Y%m%d}_{sim_end:%Y%m%d}.csv", mime="text/csv",
         icon=":material/download:", key="dl_sim", on_click="ignore",
     )
