@@ -462,7 +462,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     background: var(--q-surface);
     border: 1px solid var(--q-border);
     border-radius: var(--q-radius);
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 0;               /* sin relleno lateral: Plotly usa el ancho total y si no se corta el eje */
+    overflow: hidden;
     box-shadow: var(--q-shadow-1);
 }
 
@@ -1215,7 +1216,7 @@ PLOTLY_LAYOUT = dict(
     hoverlabel=dict(bgcolor="#0A1428", bordercolor="#0A1428", font=dict(color="white", family="Inter, sans-serif")),
     paper_bgcolor="white",
     plot_bgcolor="white",
-    margin=dict(l=8, r=8, t=40, b=8),
+    margin=dict(l=14, r=14, t=40, b=8),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     xaxis=dict(showgrid=False, zeroline=False, showline=True, automargin=True,
                linecolor="#E2E8F0", tickfont=dict(size=11, color="#64748B")),
@@ -1234,26 +1235,70 @@ def _hex_to_rgba(color: str, alpha: float) -> str:
     return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
 
 
-def plot_equity(eq_map, labels, series_color, bench_key=None, unit="$", scale="Lin"):
+_PCT_TICKS = [-95, -90, -80, -70, -60, -50, -40, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 40, 50, 60,
+              75, 100, 125, 150, 200, 250, 300, 400,
+              500, 750, 1_000, 1_500, 2_000, 3_000, 5_000, 7_500, 10_000, 20_000, 50_000, 100_000, 200_000,
+              500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000]
+
+
+def equity_trace(x, equity: pd.Series, capital: float, name: str, unit: str, **kw) -> go.Scatter:
+    """Línea de una curva de capital para un eje log. En "%" se dibuja el crecimiento (1 = capital inicial)
+    y el eje se rotula en % (los % negativos no caben en escala log); el tooltip muestra el % real."""
+    if unit == "$":
+        return go.Scatter(x=x, y=equity, mode="lines", name=name,
+                          hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>", **kw)
+    growth = np.asarray(equity, dtype=float) / capital
+    return go.Scatter(x=x, y=growth, customdata=(growth - 1) * 100, mode="lines", name=name,
+                      hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>%{{customdata:+,.2f}}%<extra></extra>", **kw)
+
+
+def finish_equity_axis(fig: go.Figure, unit: str) -> go.Figure:
+    """Eje vertical log a la derecha, en $ abreviados ($50k, $2M) o en % de rentabilidad acumulada."""
+    ys = np.concatenate([np.asarray(t.y, dtype=float) for t in fig.data if t.y is not None] or [np.ones(1)])
+    ys = ys[np.isfinite(ys) & (ys > 0)]
+    lo, hi = float(ys.min()), float(ys.max())
+    span = max(np.log10(hi) - np.log10(lo), 1e-9)
+    if unit == "$":
+        # Valores redondos ($25k, $30k, $50k, $1M…): con rangos estrechos también salen varias marcas
+        cands = [m * 10 ** e for e in range(0, 13)
+                 for m in (1, 1.1, 1.2, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9)]
+    else:
+        cands = [1 + c / 100 for c in _PCT_TICKS]
+    ticks = []
+    for v in cands:                           # marcas redondas, sin amontonarse (máx. ~8)
+        if lo <= v <= hi and (not ticks or np.log10(v) - np.log10(ticks[-1]) >= span / 8):
+            ticks.append(v)
+    es = tx("es", "en") == "es"
+    if unit == "$":
+        def _money(v):
+            for div, suf in ((1e9, " mil M" if es else "B"), (1e6, "M"), (1e3, "k")):
+                if v >= div:
+                    q = v / div
+                    num = f"{q:,.0f}" if abs(q - round(q)) < 1e-9 else f"{q:,.1f}"
+                    if es:   # 1,234.5 → 1.234,5
+                        num = num.replace(",", "§").replace(".", ",").replace("§", ".")
+                    return f"${num}{suf}"
+            return f"${v:,.0f}"
+        labels = [_money(v) for v in ticks]
+    else:
+        labels = [f"{(v - 1) * 100:+,.0f} %".replace("+0 %", "0 %") for v in ticks]
+        if es:
+            labels = [l.replace(",", ".") for l in labels]
+    fig.update_yaxes(type="log", side="right", tickvals=ticks, ticktext=labels)
+    return fig
+
+
+def plot_equity(eq_map, labels, series_color, capital: float, bench_key=None, unit="$"):
     fig = go.Figure()
-    use_log = (unit == "$" and scale == "Log")
     for label in labels:
         df = eq_map[label]
-        y = df["equity"] if unit == "$" else (df["equity"] / df["equity"].iloc[0] - 1.0) * 100.0
         is_bench = label == bench_key
-        fig.add_trace(go.Scatter(
-            x=df.index, y=y, mode="lines", name=label,
+        fig.add_trace(equity_trace(
+            df.index, df["equity"], capital, label, unit,
             line=dict(color=series_color[label], width=2 if is_bench else 2.5, dash="dot" if is_bench else None),
-            hovertemplate=f"<b>{label}</b><br>%{{x|%d %b %Y}}<br>{'$%{y:,.0f}' if unit == '$' else '%{y:.2f}%'}<extra></extra>",
         ))
     _apply_layout(fig, tx("Curva de capital", "Equity curve") + (" (%)" if unit == "%" else ""), height=360)
-    fig.update_yaxes(
-        side="right",
-        type="log" if use_log else "linear",
-        ticksuffix=" %" if unit == "%" else "",
-        tickformat=".1f" if unit == "%" else ("$,.0f" if not use_log else "$~s"),
-    )
-    return fig
+    return finish_equity_axis(fig, unit)
 
 
 def plot_dd(eq_map, labels, series_color, bench_key=None):
@@ -2015,19 +2060,16 @@ def render_comparador():
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
     # Section 2 — Equity & Drawdown
-    c_title, c_ctrl = st.columns([0.75, 0.25])
+    c_title, c_ctrl = st.columns([0.8, 0.2], vertical_alignment="center")
     with c_title:
         section_header(tx("Curva de capital y drawdown", "Equity curve and drawdown"), "trending-up")
     with c_ctrl:
-        st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
-        col_u, col_s = st.columns(2)
-        with col_u:
-            unit_choice = st.radio("Unidad", options=["$", "%"], index=0, horizontal=True, label_visibility="collapsed")
-        with col_s:
-            scale_choice = st.radio("Escala", options=["Lin", "Log"], index=1, horizontal=True, label_visibility="collapsed")
+        # Escala siempre logarítmica; solo se elige la unidad
+        unit_choice = st.segmented_control("Unidad", ["$", "%"], default="$", key="cmp_unit",
+                                           label_visibility="collapsed") or "$"
 
     st.plotly_chart(
-        plot_equity(eq_map, ordered_labels, SERIES_COLOR, bench_key=bench_key, unit=unit_choice, scale=scale_choice),
+        plot_equity(eq_map, ordered_labels, SERIES_COLOR, float(initial_capital), bench_key=bench_key, unit=unit_choice),
         use_container_width=True, config={"displayModeBar": False},
     )
     st.plotly_chart(
@@ -2688,28 +2730,29 @@ def render_simulador():
         if not n_lines:
             st.info(nothing_msg)
         else:
+            sim_unit = st.segmented_control("Unidad simulador", ["$", "%"], default="$", key="sim_unit",
+                                            label_visibility="collapsed") or "$"
             fig_eq = go.Figure()
             for name, dfe, color, dash in overlay:
                 s = _with_start(dfe["equity"], capital)
-                fig_eq.add_trace(go.Scatter(
-                    x=s.index, y=s.values, mode="lines", name=name, opacity=0.75 if show_port else 1.0,
+                fig_eq.add_trace(equity_trace(
+                    s.index, s.values, capital, name, sim_unit, opacity=0.75 if show_port else 1.0,
                     line=dict(color=color, width=1.4 if show_port else 2, dash=dash),
-                    hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
                 ))
             if show_port:
-                fig_eq.add_trace(go.Scatter(
-                    x=eq_plot.index, y=eq_plot.values, mode="lines", name=port_name,
+                fig_eq.add_trace(equity_trace(
+                    eq_plot.index, eq_plot.values, capital, port_name, sim_unit,
                     line=dict(color=PORTFOLIO_COLOR, width=3),
-                    fill=None if multi else "tozeroy", fillcolor=_hex_to_rgba(PORTFOLIO_COLOR, 0.08),
-                    hovertemplate=f"<b>{port_name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
                 ))
-            _apply_layout(fig_eq, tx("Curva de capital", "Equity curve"), height=400)
+            _apply_layout(fig_eq, tx("Curva de capital", "Equity curve") + (" (%)" if sim_unit == "%" else ""),
+                          height=400)
             fig_eq.update_layout(showlegend=multi)
-            fig_eq.update_yaxes(tickformat="$~s" if multi else "$,.0f", side="right", type="log" if multi else "linear")
+            finish_equity_axis(fig_eq, sim_unit)
             st.plotly_chart(fig_eq, use_container_width=True, config={"displayModeBar": False})
-            if multi:
-                st.caption(tx("Escala logarítmica para comparar series con rentabilidades muy distintas.",
-                              "Log scale to compare series with very different returns."))
+            st.caption(tx("Escala logarítmica: la misma distancia vertical es la misma rentabilidad en cualquier "
+                          "momento, lo que permite comparar series con rentabilidades muy distintas.",
+                          "Log scale: the same vertical distance is the same return at any point in time, which "
+                          "makes series with very different returns comparable."))
 
     with sim_tab2:
         if not n_lines:
