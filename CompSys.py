@@ -2664,86 +2664,109 @@ def render_simulador():
     dd_plot = _with_start(df_sim["dd"] * 100, 0.0)
     annual_sim = (1 + ret_sim).groupby(ret_sim.index.year).prod() - 1
 
-    show_overlay = st.toggle(tx("Mostrar componentes y benchmark en los gráficos",
-                                "Show components and benchmark on the charts"), value=True, key="sim_overlay")
+    # Qué series se dibujan: un interruptor para cada grupo (se aplica a los tres gráficos)
+    with st.container(horizontal=True, key="sim_series_toggles", gap="large"):
+        show_port = st.toggle(port_name, value=True, key="sim_show_port")
+        show_comp = st.toggle(tx("Componentes", "Components"), value=True, key="sim_show_comp")
+        show_bench = st.toggle("Benchmark", value=True, key="sim_show_bench", disabled=bench_eq is None)
+    show_bench = show_bench and bench_eq is not None
 
     sim_tab1, sim_tab2, sim_tab3 = st.tabs([":material/show_chart: " + tx("Capital", "Equity"),
                                             ":material/trending_down: Drawdown",
                                             ":material/calendar_month: " + tx("Rentabilidad anual", "Annual return")])
 
-    overlay = []
-    if show_overlay:
-        overlay = [(k, comp_eq[k], SERIES_COLOR[k], None) for k in series_list]
-        if bench_eq is not None:
-            overlay.append((bench_key, bench_eq, BENCH_COLOR, "dot"))
+    overlay = [(k, comp_eq[k], SERIES_COLOR[k], None) for k in series_list] if show_comp else []
+    if show_bench:
+        overlay.append((bench_key, bench_eq, BENCH_COLOR, "dot"))
+    n_lines = len(overlay) + int(show_port)
+    multi = n_lines > 1                       # varias series → leyenda y escala log para compararlas
+    nothing_msg = tx("Activa al menos una serie (Cartera, Componentes o Benchmark) para ver el gráfico.",
+                     "Turn on at least one series (Portfolio, Components or Benchmark) to see the chart.")
 
     with sim_tab1:
-        fig_eq = go.Figure()
-        for name, dfe, color, dash in overlay:
-            s = _with_start(dfe["equity"], capital)
-            fig_eq.add_trace(go.Scatter(
-                x=s.index, y=s.values, mode="lines", name=name, opacity=0.75,
-                line=dict(color=color, width=1.4, dash=dash),
-                hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
-            ))
-        fig_eq.add_trace(go.Scatter(
-            x=eq_plot.index, y=eq_plot.values, mode="lines", name=port_name,
-            line=dict(color=PORTFOLIO_COLOR, width=3),
-            fill=None if overlay else "tozeroy", fillcolor=_hex_to_rgba(PORTFOLIO_COLOR, 0.08),
-            hovertemplate=f"<b>{port_name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
-        ))
-        _apply_layout(fig_eq, tx("Curva de capital", "Equity curve"), height=400)
-        fig_eq.update_layout(showlegend=bool(overlay))
-        fig_eq.update_yaxes(tickformat="$~s" if overlay else "$,.0f", side="right", type="log" if overlay else "linear")
-        st.plotly_chart(fig_eq, use_container_width=True, config={"displayModeBar": False})
-        if overlay:
-            st.caption(tx("Escala logarítmica para comparar series con rentabilidades muy distintas.",
-                          "Log scale to compare series with very different returns."))
+        if not n_lines:
+            st.info(nothing_msg)
+        else:
+            fig_eq = go.Figure()
+            for name, dfe, color, dash in overlay:
+                s = _with_start(dfe["equity"], capital)
+                fig_eq.add_trace(go.Scatter(
+                    x=s.index, y=s.values, mode="lines", name=name, opacity=0.75 if show_port else 1.0,
+                    line=dict(color=color, width=1.4 if show_port else 2, dash=dash),
+                    hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
+                ))
+            if show_port:
+                fig_eq.add_trace(go.Scatter(
+                    x=eq_plot.index, y=eq_plot.values, mode="lines", name=port_name,
+                    line=dict(color=PORTFOLIO_COLOR, width=3),
+                    fill=None if multi else "tozeroy", fillcolor=_hex_to_rgba(PORTFOLIO_COLOR, 0.08),
+                    hovertemplate=f"<b>{port_name}</b><br>%{{x|%d %b %Y}}<br>$%{{y:,.0f}}<extra></extra>",
+                ))
+            _apply_layout(fig_eq, tx("Curva de capital", "Equity curve"), height=400)
+            fig_eq.update_layout(showlegend=multi)
+            fig_eq.update_yaxes(tickformat="$~s" if multi else "$,.0f", side="right", type="log" if multi else "linear")
+            st.plotly_chart(fig_eq, use_container_width=True, config={"displayModeBar": False})
+            if multi:
+                st.caption(tx("Escala logarítmica para comparar series con rentabilidades muy distintas.",
+                              "Log scale to compare series with very different returns."))
 
     with sim_tab2:
-        fig_dd2 = go.Figure()
-        for name, dfe, color, dash in overlay:
-            s = _with_start(dfe["dd"] * 100, 0.0)
-            fig_dd2.add_trace(go.Scatter(
-                x=s.index, y=s.values, mode="lines", name=name, opacity=0.6,
-                line=dict(color=color, width=1.2, dash=dash),
-                hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}%<extra></extra>",
-            ))
-        fig_dd2.add_trace(go.Scatter(
-            x=dd_plot.index, y=dd_plot.values, mode="lines", name=port_name,
-            line=dict(color=PORTFOLIO_COLOR if overlay else "#e11d48", width=2.5),
-            fill="tozeroy", fillcolor=_hex_to_rgba(PORTFOLIO_COLOR if overlay else "#e11d48", 0.10),
-            hovertemplate=f"<b>{port_name}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}%<extra></extra>",
-        ))
-        _apply_layout(fig_dd2, "Drawdown (%)", height=400)
-        fig_dd2.update_layout(showlegend=bool(overlay))
-        fig_dd2.update_yaxes(ticksuffix=" %", side="right")
-        st.plotly_chart(fig_dd2, use_container_width=True, config={"displayModeBar": False})
+        if not n_lines:
+            st.info(nothing_msg)
+        else:
+            fig_dd2 = go.Figure()
+            for name, dfe, color, dash in overlay:
+                s = _with_start(dfe["dd"] * 100, 0.0)
+                fig_dd2.add_trace(go.Scatter(
+                    x=s.index, y=s.values, mode="lines", name=name, opacity=0.6 if show_port else 1.0,
+                    line=dict(color=color, width=1.2 if show_port else 1.8, dash=dash),
+                    hovertemplate=f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}%<extra></extra>",
+                ))
+            if show_port:
+                port_dd_color = PORTFOLIO_COLOR if multi else "#e11d48"
+                fig_dd2.add_trace(go.Scatter(
+                    x=dd_plot.index, y=dd_plot.values, mode="lines", name=port_name,
+                    line=dict(color=port_dd_color, width=2.5),
+                    fill="tozeroy", fillcolor=_hex_to_rgba(port_dd_color, 0.10),
+                    hovertemplate=f"<b>{port_name}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}%<extra></extra>",
+                ))
+            _apply_layout(fig_dd2, "Drawdown (%)", height=400)
+            fig_dd2.update_layout(showlegend=multi)
+            fig_dd2.update_yaxes(ticksuffix=" %", side="right")
+            st.plotly_chart(fig_dd2, use_container_width=True, config={"displayModeBar": False})
 
     with sim_tab3:
-        fig_bar = go.Figure()
-        fig_bar.add_trace(go.Bar(
-            x=annual_sim.index.astype(str),
-            y=(annual_sim * 100).round(2),
-            name=port_name,
-            marker_color=[_sign_color(v) for v in annual_sim.values],
-            hovertemplate=f"<b>{port_name}</b><br>%{{x}}<br>%{{y:.2f}}%<extra></extra>",
-        ))
-        if bench_eq is not None and show_overlay:
-            b_annual = (1 + bench_eq["ret"]).groupby(bench_eq.index.year).prod() - 1
-            fig_bar.add_trace(go.Scatter(
-                x=b_annual.index.astype(str), y=(b_annual * 100).round(2), name=bench_key,
-                mode="markers", marker=dict(color="#475569", size=9, symbol="line-ew-open", line=dict(width=3)),
-                hovertemplate=f"<b>{bench_key}</b><br>%{{x}}<br>%{{y:.2f}}%<extra></extra>",
-            ))
-        _apply_layout(fig_bar, tx("Rentabilidad anual (%)", "Annual return (%)"), height=400)
-        fig_bar.update_layout(bargap=0.3, showlegend=bench_eq is not None and show_overlay)
-        fig_bar.update_yaxes(ticksuffix=" %", side="right")
-        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-        st.caption(tx("El primer y el último año pueden ser parciales (según el periodo seleccionado).",
-                      "The first and last years may be partial (depending on the selected period).")
-                   + (tx(" La marca gris es el benchmark.", " The grey mark is the benchmark.")
-                      if bench_eq is not None and show_overlay else ""))
+        if not n_lines:
+            st.info(nothing_msg)
+        else:
+            fig_bar = go.Figure()
+            if show_port:
+                fig_bar.add_trace(go.Bar(
+                    x=annual_sim.index.astype(str),
+                    y=(annual_sim * 100).round(2),
+                    name=port_name,
+                    marker_color=[_sign_color(v) for v in annual_sim.values],
+                    hovertemplate=f"<b>{port_name}</b><br>%{{x}}<br>%{{y:.2f}}%<extra></extra>",
+                ))
+            # Componentes y benchmark como marcas sobre las barras de la cartera
+            for name, dfe, color, dash in overlay:
+                yr = (1 + dfe["ret"]).groupby(dfe.index.year).prod() - 1
+                is_b = name == bench_key
+                fig_bar.add_trace(go.Scatter(
+                    x=yr.index.astype(str), y=(yr * 100).round(2), name=name, mode="markers",
+                    marker=dict(color="#475569" if is_b else color, size=10 if is_b else 8,
+                                symbol="line-ew-open" if is_b else "circle",
+                                line=dict(width=3 if is_b else 1, color="#475569" if is_b else "white")),
+                    hovertemplate=f"<b>{name}</b><br>%{{x}}<br>%{{y:.2f}}%<extra></extra>",
+                ))
+            _apply_layout(fig_bar, tx("Rentabilidad anual (%)", "Annual return (%)"), height=400)
+            fig_bar.update_layout(bargap=0.3, showlegend=multi)
+            fig_bar.update_yaxes(ticksuffix=" %", side="right")
+            st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+            st.caption(tx("El primer y el último año pueden ser parciales (según el periodo seleccionado).",
+                          "The first and last years may be partial (depending on the selected period).")
+                       + (tx(" Barras = cartera; puntos = componentes; marca gris = benchmark.",
+                             " Bars = portfolio; dots = components; grey mark = benchmark.") if multi else ""))
 
     sim_csv = pd.DataFrame({tx("Capital", "Equity"): df_sim["equity"],
                             tx("Retorno diario %", "Daily return %"): ret_sim * 100,
