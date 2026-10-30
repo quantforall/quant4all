@@ -2825,6 +2825,54 @@ def render_simulador():
         icon=":material/download:", key="dl_sim", on_click="ignore",
     )
 
+    # ---- Mejores/peores días, drawdowns y stress test (cartera, componentes y benchmark) ----
+    sim_rets = {port_name: ret_sim}
+    sim_rets.update({k: comp_eq[k]["ret"] for k in series_list})
+    sim_dds = {port_name: df_sim["dd"]}
+    sim_dds.update({k: comp_eq[k]["dd"] for k in series_list})
+    if bench_eq is not None:
+        sim_rets[bench_key] = bench_eq["ret"]
+        sim_dds[bench_key] = bench_eq["dd"]
+    sim_labels = list(sim_rets.keys())
+    sim_color = {**SERIES_COLOR, port_name: PORTFOLIO_COLOR}
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+    section_header(tx("Mejores y peores días", "Best and worst days"), "trending-up")
+    top_sim, worst_sim = {}, {}
+    for label, r in sim_rets.items():
+        t, b = compute_top_bottom(r, k=TOP_N)
+        top_sim[label] = t + [(None, np.nan)] * (TOP_N - len(t))
+        worst_sim[label] = b + [(None, np.nan)] * (TOP_N - len(b))
+    st.markdown(render_top_table(tx("Mejores días", "Best days"), "trending-up", top_sim, sim_color), unsafe_allow_html=True)
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+    st.markdown(render_top_table(tx("Peores días", "Worst days"), "trending-down", worst_sim, sim_color), unsafe_allow_html=True)
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+    section_header(tx("Peores drawdowns", "Worst drawdowns"), "trending-down")
+    sim_dd_label = series_picker("Serie (drawdowns simulador)", sim_labels)
+    sim_dd_sort_names = {"depth": tx("Más profundos", "Deepest"), "days": tx("Más largos", "Longest")}
+    sim_dd_sort = series_picker("Orden (drawdowns simulador)", list(sim_dd_sort_names), format_func=sim_dd_sort_names.get)
+    sim_eps = drawdown_episodes(sim_dds[sim_dd_label])
+    if sim_eps.empty:
+        st.info(tx("Esta serie no tiene drawdowns en el periodo simulado.", "This series has no drawdowns in the simulated period."))
+    else:
+        st.markdown(render_drawdowns_table(sim_eps, k=TOP_N, sort_by=sim_dd_sort), unsafe_allow_html=True)
+
+    st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
+    section_header(tx("Stress test: grandes caídas del mercado", "Stress test: major market sell-offs"), "target")
+    crisis_html, n_crisis = render_crisis_table(sp500_worst_falls(TOP_N), sim_rets, sim_labels, sim_color)
+    if n_crisis:
+        st.markdown(crisis_html, unsafe_allow_html=True)
+        st.caption(
+            tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada una de sus mayores caídas, y debajo su peor "
+               "drawdown dentro de ese tramo. Solo usa el periodo simulado; «—» = la serie no cubre ese periodo.",
+               "Return of each series between the S&P 500 peak and trough of each of its largest falls, with its worst "
+               "drawdown within that stretch below. Only uses the simulated period; “—” = the series does not cover that period.")
+        )
+    else:
+        st.info(tx("Ninguna de las series seleccionadas tiene datos en los periodos de crisis analizados.",
+                   "None of the selected series has data for the crisis periods analysed."))
+
     # ---- Monte Carlo ----
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
     section_header(tx("Monte Carlo: ¿qué podría pasar a partir de ahora?", "Monte Carlo: what could happen from here?"),
