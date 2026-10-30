@@ -2048,6 +2048,7 @@ def render_comparador():
     )
 
     st.markdown(render_top_table(tx("Mejores días", "Best days"), "trending-up", top_dict, SERIES_COLOR), unsafe_allow_html=True)
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
     st.markdown(render_top_table(tx("Peores días", "Worst days"), "trending-down", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
 
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
