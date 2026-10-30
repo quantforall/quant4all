@@ -2047,11 +2047,8 @@ def render_comparador():
         mime="text/csv", icon=":material/download:", key="dl_metrics", on_click="ignore",
     )
 
-    c2, c3 = st.columns(2, gap="small")
-    with c2:
-        st.markdown(render_top_table(tx("Mejores días", "Best days"), "trending-up", top_dict, SERIES_COLOR), unsafe_allow_html=True)
-    with c3:
-        st.markdown(render_top_table(tx("Peores días", "Worst days"), "trending-down", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
+    st.markdown(render_top_table(tx("Mejores días", "Best days"), "trending-up", top_dict, SERIES_COLOR), unsafe_allow_html=True)
+    st.markdown(render_top_table(tx("Peores días", "Worst days"), "trending-down", worst_dict, SERIES_COLOR), unsafe_allow_html=True)
 
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
 
