@@ -2135,7 +2135,8 @@ def render_comparador():
     with rc1:
         roll_kind = series_picker("Métrica rolling", roll_kinds, format_func=roll_names.get)
     with rc2:
-        roll_windows = {126: tx("6 meses", "6 months"), 252: tx("1 año", "1 year"), 756: tx("3 años", "3 years")}
+        roll_windows = {126: tx("6 meses", "6 months"), 252: tx("1 año", "1 year"), 756: tx("3 años", "3 years"),
+                        1260: tx("5 años", "5 years")}
         win = series_picker("Ventana rolling", list(roll_windows), default=252, format_func=roll_windows.get)
 
     fig_roll = go.Figure()
