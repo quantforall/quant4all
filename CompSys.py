@@ -2126,9 +2126,9 @@ def render_comparador():
     # Section 5 — Métricas rolling
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
     section_header(tx("Métricas rolling", "Rolling metrics"), "trending-up")
-    roll_names = {"ret": tx("Rentabilidad", "Return"), "sharpe": "Sharpe", "vol": tx("Volatilidad", "Volatility"),
+    roll_names = {"cagr": "CAGR", "sharpe": "Sharpe", "vol": tx("Volatilidad", "Volatility"),
                   "corr": tx(f"Correlación con {bench_label}", f"Correlation with {bench_label}")}
-    roll_kinds = ["ret", "sharpe", "vol"]
+    roll_kinds = ["cagr", "sharpe", "vol"]
     if has_bench and bench_key in daily_map and rel_labels:
         roll_kinds.append("corr")
     rc1, rc2 = st.columns([0.6, 0.4])
@@ -2143,8 +2143,9 @@ def render_comparador():
     roll_labels = rel_labels if is_corr else [l for l in ordered_labels if l in daily_map]
     for l in roll_labels:
         r = daily_map[l]
-        if roll_kind == "ret":
-            y = np.expm1(np.log1p(r).rolling(win).sum()) * 100
+        if roll_kind == "cagr":
+            # Rentabilidad anualizada de la ventana: (1 + acumulada) ^ (días por año / días de la ventana) - 1
+            y = np.expm1(np.log1p(r).rolling(win).sum() * TRADING_DAYS / win) * 100
         elif roll_kind == "sharpe":
             y = r.rolling(win).mean() / r.rolling(win).std() * np.sqrt(TRADING_DAYS)
         elif roll_kind == "vol":
@@ -2160,20 +2161,20 @@ def render_comparador():
             x=y.index, y=y.values, mode="lines", name=l,
             line=dict(color=SERIES_COLOR[l], width=1.6 if is_b else 2, dash="dot" if is_b else None),
             hovertemplate=f"<b>{l}</b><br>%{{x|%d %b %Y}}<br>%{{y:.2f}}"
-                          f"{'%' if roll_kind in ('ret', 'vol') else ''}<extra></extra>",
+                          f"{'%' if roll_kind in ('cagr', 'vol') else ''}<extra></extra>",
         ))
     if fig_roll.data:
         _apply_layout(fig_roll, f"{roll_names[roll_kind]} — {tx('ventana', 'window')} {roll_windows[win]}", height=360)
-        if roll_kind in ("ret", "vol"):
+        if roll_kind in ("cagr", "vol"):
             fig_roll.update_yaxes(ticksuffix=" %")
         if roll_kind != "vol":
             fig_roll.add_hline(y=0, line=dict(color="#94A3B8", width=1))
         st.plotly_chart(fig_roll, use_container_width=True, config={"displayModeBar": False})
         st.caption(
-            tx("Cada punto resume la ventana que termina ese día: rentabilidad acumulada, Sharpe anualizado "
+            tx("Cada punto resume la ventana que termina ese día: CAGR de la ventana, Sharpe anualizado "
                "(rf = 0), volatilidad anualizada o correlación de los retornos diarios con el benchmark. "
                "Sirve para ver si la ventaja de un sistema es estable o depende de una época concreta.",
-               "Each point summarises the window ending that day: cumulative return, annualised Sharpe "
+               "Each point summarises the window ending that day: CAGR over the window, annualised Sharpe "
                "(rf = 0), annualised volatility or correlation of daily returns with the benchmark. "
                "It shows whether a system's edge is stable or depends on a particular period.")
         )
@@ -2860,14 +2861,21 @@ def render_simulador():
 
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
     section_header(tx("Stress test: grandes caídas del mercado", "Stress test: major market sell-offs"), "target")
-    crisis_html, n_crisis = render_crisis_table(sp500_worst_falls(TOP_N), sim_rets, sim_labels, sim_color)
+    # Componentes y benchmark con su histórico completo; la cartera solo existe en el periodo simulado
+    crisis_rets = {port_name: ret_sim}
+    crisis_rets.update({k: full_daily[k] for k in series_list})
+    if bench_eq is not None:
+        crisis_rets[bench_key] = full_daily[bench_key]
+    crisis_html, n_crisis = render_crisis_table(sp500_worst_falls(TOP_N), crisis_rets, list(crisis_rets), sim_color)
     if n_crisis:
         st.markdown(crisis_html, unsafe_allow_html=True)
         st.caption(
             tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada una de sus mayores caídas, y debajo su peor "
-               "drawdown dentro de ese tramo. Solo usa el periodo simulado; «—» = la serie no cubre ese periodo.",
+               "drawdown dentro de ese tramo. Componentes y benchmark usan su histórico completo; la cartera solo el periodo "
+               "simulado. «—» = la serie no cubre ese periodo.",
                "Return of each series between the S&P 500 peak and trough of each of its largest falls, with its worst "
-               "drawdown within that stretch below. Only uses the simulated period; “—” = the series does not cover that period.")
+               "drawdown within that stretch below. Components and benchmark use their full history; the portfolio only the "
+               "simulated period. “—” = the series does not cover that period.")
         )
     else:
         st.info(tx("Ninguna de las series seleccionadas tiene datos en los periodos de crisis analizados.",
