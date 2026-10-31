@@ -674,6 +674,9 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
     /* Tablas anchas (Top/Worst, Performance) → scroll horizontal */
     .table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
 
+    /* Sidebar plegada: fuera del flujo para que no tape el contenido (el botón de abrirla sigue en la cabecera) */
+    [data-testid="stSidebar"][aria-expanded="false"] { display: none; }
+
     /* Heatmap mensual: ancho completo + scroll, sin aplastar celdas */
     .monthly-heat-wrap { width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .monthly-heat { min-width: 620px; }
@@ -1043,14 +1046,21 @@ def load_tbill_rate() -> pd.Series:
     return s / 100.0 if not s.empty else s
 
 
-# Las k mayores caídas del S&P 500 (cierre del máximo previo → cierre del mínimo), con todo su histórico
-@st.cache_data(show_spinner=False)
-def sp500_worst_falls(k: int = 10) -> list:
-    close = download_prices("^GSPC")
-    if close.empty:
-        return []
-    eps = drawdown_episodes(close / close.cummax() - 1).nsmallest(k, "depth")
-    return [(ep.start, ep.trough, ep.depth) for ep in eps.itertuples()]
+# Caídas relevantes del S&P 500 (cierre del máximo previo → cierre del mínimo)
+CRISIS_PERIODS = [
+    ("LTCM / Rusia", "LTCM / Russia", "1998-07-17", "1998-08-31"),
+    ("Burbuja puntocom", "Dot-com bubble", "2000-03-24", "2002-10-09"),
+    ("11-S", "9/11", "2001-09-10", "2001-09-21"),
+    ("Crisis financiera", "Financial crisis", "2007-10-09", "2009-03-09"),
+    ("Flash crash 2010", "2010 flash crash", "2010-04-23", "2010-07-02"),
+    ("Deuda EE.UU. 2011", "2011 US debt crisis", "2011-04-29", "2011-10-03"),
+    ("Corrección 2015–16", "2015–16 correction", "2015-05-21", "2016-02-11"),
+    ("Volmageddon", "Volmageddon", "2018-01-26", "2018-02-08"),
+    ("4º trimestre 2018", "Q4 2018", "2018-09-20", "2018-12-24"),
+    ("COVID-19", "COVID-19", "2020-02-19", "2020-03-23"),
+    ("Bajista 2022", "2022 bear market", "2022-01-03", "2022-10-12"),
+    ("Aranceles 2025", "2025 tariffs", "2025-02-19", "2025-04-08"),
+]
 
 
 def period_stats(daily_ret: pd.Series, start: str, end: str):
@@ -1425,12 +1435,12 @@ def render_drawdowns_table(eps: pd.DataFrame, k: int = 10, sort_by: str = "depth
     return "".join(html)
 
 
-def render_crisis_table(periods: list, full_daily: dict, labels: list, series_color: dict):
-    """Filas = caídas del S&P 500 (periods); columnas = series. Retorno del periodo y, debajo, su peor drawdown.
-    Devuelve (html, nº de caídas con datos)."""
+def render_crisis_table(full_daily: dict, labels: list, series_color: dict):
+    """Filas = crisis; columnas = series. Retorno del periodo y, debajo, su peor drawdown.
+    Devuelve (html, nº de crisis con datos)."""
     rows = []
-    for i, (start, end, depth) in enumerate(periods, start=1):
-        name = f"{i}. S&P 500 {depth * 100:.1f}%"
+    for name_es, name_en, start, end in CRISIS_PERIODS:
+        name = tx(name_es, name_en)
         stats = {l: period_stats(full_daily[l], start, end) for l in labels}
         if all(v is None for v in stats.values()):
             continue
@@ -1448,10 +1458,10 @@ def render_crisis_table(periods: list, full_daily: dict, labels: list, series_co
         rows.append(tr + "</tr>")
     heads = [tx("Periodo", "Period")] + [series_label_html(l, series_color) for l in labels]
     html = (f'<div class="table-wrap"><div class="table-title">{icon("trending-down", 16)} '
-            f'{tx(f"Las {len(periods)} mayores caídas del S&P 500", f"The {len(periods)} largest S&P 500 sell-offs")}</div>'
+            f'{tx("Comportamiento en las grandes caídas del S&P 500", "Behaviour in the big S&P 500 sell-offs")}</div>'
             f'<div class="table-scroll"><table class="table-common metrics-table narrow" '
             f'style="min-width:{180 + 95 * len(labels)}px">'
-            + _colgroup(len(heads), 22 if len(labels) <= 4 else 16) + "<thead><tr>"
+            + _colgroup(len(heads), 24) + "<thead><tr>"
             + "".join(f"<th>{h}</th>" for h in heads) + "</tr></thead><tbody>"
             + "".join(rows) + "</tbody></table></div></div>")
     return html, len(rows)
@@ -2185,14 +2195,14 @@ def render_comparador():
     # Section 6 — Crisis
     st.markdown("<div class='q-divider'></div>", unsafe_allow_html=True)
     section_header(tx("Stress test: grandes caídas del mercado", "Stress test: major market sell-offs"), "target")
-    crisis_html, n_crisis = render_crisis_table(sp500_worst_falls(TOP_N), full_daily, ordered_labels, SERIES_COLOR)
+    crisis_html, n_crisis = render_crisis_table(full_daily, ordered_labels, SERIES_COLOR)
     if n_crisis:
         st.markdown(crisis_html, unsafe_allow_html=True)
         st.caption(
-            tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada una de sus mayores caídas, y debajo su peor "
+            tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada episodio, y debajo su peor "
                "drawdown dentro de ese tramo. Usa todo el histórico disponible de cada serie (no depende del rango "
                "de fechas elegido); «—» = la serie no tiene datos para ese periodo.",
-               "Return of each series between the S&P 500 peak and trough of each of its largest falls, with its worst "
+               "Return of each series between the S&P 500 peak and trough of each episode, with its worst "
                "drawdown within that stretch below. Uses each series' full history (independent of the selected "
                "date range); “—” = no data for that period.")
         )
@@ -2867,14 +2877,14 @@ def render_simulador():
     crisis_rets.update({k: full_daily[k] for k in series_list})
     if bench_eq is not None:
         crisis_rets[bench_key] = full_daily[bench_key]
-    crisis_html, n_crisis = render_crisis_table(sp500_worst_falls(TOP_N), crisis_rets, list(crisis_rets), sim_color)
+    crisis_html, n_crisis = render_crisis_table(crisis_rets, list(crisis_rets), sim_color)
     if n_crisis:
         st.markdown(crisis_html, unsafe_allow_html=True)
         st.caption(
-            tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada una de sus mayores caídas, y debajo su peor "
+            tx("Retorno de cada serie entre el máximo y el mínimo del S&P 500 en cada episodio, y debajo su peor "
                "drawdown dentro de ese tramo. Componentes y benchmark usan su histórico completo; la cartera solo el periodo "
                "simulado. «—» = la serie no cubre ese periodo.",
-               "Return of each series between the S&P 500 peak and trough of each of its largest falls, with its worst "
+               "Return of each series between the S&P 500 peak and trough of each episode, with its worst "
                "drawdown within that stretch below. Components and benchmark use their full history; the portfolio only the "
                "simulated period. “—” = the series does not cover that period.")
         )
