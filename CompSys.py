@@ -677,9 +677,19 @@ div[data-testid="stHorizontalBlock"] .stRadio > label { font-size: 0.8rem; }
     /* Sidebar plegada: fuera del flujo para que no tape el contenido (el botón de abrirla sigue en la cabecera) */
     [data-testid="stSidebar"][aria-expanded="false"] { display: none; }
 
-    /* Heatmap mensual: ancho completo + scroll, sin aplastar celdas */
-    .monthly-heat-wrap { width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .monthly-heat { min-width: 620px; }
+    /* Heatmap mensual: los 12 meses caben sin scroll; el % se oculta para que quepa el dato */
+    .monthly-heat-wrap { width: 100% !important; overflow: hidden; }
+    .monthly-heat { font-size: 0.7rem; }
+    .monthly-heat th, .monthly-heat td { padding: 0.35rem 1px; }
+    .monthly-heat thead th { font-size: 0.6rem; letter-spacing: 0; white-space: normal; line-height: 1.15; }
+    .monthly-heat td.year-col, .monthly-heat th.year-col { width: 9%; font-size: 0.6rem; padding-left: 0; padding-right: 0; }
+    .monthly-heat th.mon-col, .monthly-heat td.mon-col { width: 6.7%; }
+    .monthly-heat th.ytd-col, .monthly-heat td.ytd-col { width: 9.5%; }
+    .monthly-heat .cell { font-size: 0.66rem; }
+    .monthly-heat td.ytd-col .cell { font-size: 0.56rem; }
+    .monthly-heat .pct { display: none; }
+    /* Meses en enteros para que quepan; los decimales se mantienen en la columna del año */
+    .monthly-heat td.mon-col .dec { display: none; }
 
     /* Counter cards (días +/-) un poco menores */
     .count-card .count-val { font-size: 2.2rem; }
@@ -1540,7 +1550,9 @@ def monthly_heat_html(daily_ret: pd.Series) -> str:
     def td(v, cls):
         if pd.isna(v):
             return f"<td class='{cls} na'>—</td>"
-        return f"<td class='{cls}' style='{bg_color(v)}'><span class='cell'>{v:+.1f}%</span></td>"
+        entero, decimal = f"{v:+.1f}".split(".")
+        return (f"<td class='{cls}' style='{bg_color(v)}'><span class='cell'>{entero}"
+                f"<span class='dec'>.{decimal}</span><span class='pct'>%</span></span></td>")
 
     html = ["<div class='monthly-heat-wrap'><table class='monthly-heat'>",
             f"<thead><tr><th class='year-col'>{tx('Año', 'Year')}</th>"]
