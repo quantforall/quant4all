@@ -2915,7 +2915,7 @@ def render_simulador():
         mc1, mc2 = st.columns([0.5, 0.5])
         with mc1:
             horizons = {y: tx(f"{y} año" + ("s" if y > 1 else ""), f"{y} year" + ("s" if y > 1 else ""))
-                        for y in (1, 3, 5, 10)}
+                        for y in (1, 3, 5, 10, 20, 30, 40, 50)}
             h_years = series_picker("Horizonte Monte Carlo", list(horizons), default=5, format_func=horizons.get)
             h_label = horizons[h_years]
         with mc2:
